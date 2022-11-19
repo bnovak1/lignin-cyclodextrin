@@ -1,0 +1,132 @@
+{
+    "LIGNOLS": [
+        "GG",
+        "TGG",
+        "GG_BB"
+    ],
+    "CONCENTRATIONS": [
+        "0.0"
+    ],
+    "TRAJ_FREQUENCY": {
+        "GG": 1,
+        "TGG": 1,
+        "GG_BB": 1
+    },
+    "LIGNIN_RESNAME": {
+        "GG": "GUAI",
+        "TGG": "GUAI",
+        "GG_BB": "GUAI"
+    },
+    "CYCLODEXTRIN_RESNAME": "BCDC",
+    "LIGNIN_NRES": {
+        "GG": 2,
+        "TGG": 2,
+        "GG_BB": 2
+    },
+    "CYCLODEXTRIN_NRES": 7,
+    "LIGININ_SELECTIONS": {
+        "GG": "(resid 7 and name C1 C2 C3 C4 C5 C6 O3 C7 C8 C9 O4) or (resid 8 and name C1 C2 C3 C4 C5 C6 O3 C7 C8)",
+        "TGG": "(resid 7 and name C1 C2 C3 C4 C5 C6 O3 O4) or (resid 8 and name C1 C2 C3 C4 C5 C6 C7 C8 O3 O4)",
+        "GG_BB": "resname GUAI and name C1 C2 C3 C4 C5 C6 O3 C7 C8 C9 O7"
+    },
+    "LIGNIN_DIHEDRALS": {
+        "GG": [
+            [
+                "resid 7 and name C3",
+                "resid 7 and name C4",
+                "resid 7 and name O4",
+                "resid 8 and name C8"
+            ],
+            [
+                "resid 7 and name C4",
+                "resid 7 and name O4",
+                "resid 8 and name C8",
+                "resid 8 and name C7"
+            ],
+
+            [
+                "resid 7 and name O4",
+                "resid 8 and name C8",
+                "resid 8 and name C7",
+                "resid 8 and name C1"
+            ],
+            [
+                "resid 8 and name C8",
+                "resid 8 and name C7",
+                "resid 8 and name C1",
+                "resid 8 and name C2"
+            ]
+        ],
+        "TGG": [
+            [
+                "resid 7 and name C3",
+                "resid 7 and name C4",
+                "resid 7 and name O4",
+                "resid 8 and name C8"
+            ],
+            [
+                "resid 7 and name C4",
+                "resid 7 and name O4",
+                "resid 8 and name C8",
+                "resid 8 and name C7"
+            ],
+            [
+                "resid 7 and name O4",
+                "resid 8 and name C8",
+                "resid 8 and name C7",
+                "resid 8 and name C1"
+            ],
+            [
+                "resid 8 and name C8",
+                "resid 8 and name C7",
+                "resid 8 and name C1",
+                "resid 8 and name C2"
+            ]
+        ],
+        "GG_BB": []
+    },
+    "LIGNIN_NATOMS": {
+        "GG": 20,
+        "TGG": 18,
+        "GG_BB": 22
+    },
+    "CYCLODEXTRIN_SELECTIONS": {
+        "GG": "resname BCDC and name O4",
+        "TGG": "resname BCDC and name O4",
+        "GG_BB": "resname BCDC and name O4"
+    },
+    "CYCLODEXTRIN_NATOMS": {
+        "GG": 7,
+        "TGG": 7,
+        "GG_BB": 7
+    },
+    "PCA_DIM": {
+        "GG": 2,
+        "TGG": 2,
+        "GG_BB": 2
+    },
+    "DBSCAN_EPS": {
+        "GG": 0.356,
+        "TGG": 0.14,
+        "GG_BB": 0.441
+    },
+    "DBSCAN_MIN_SAMPLES": {
+        "GG": 29,
+        "TGG": 24,
+        "GG_BB": 10
+    },
+    "DBSCAN_LABELS": {
+        "GG": {
+            "head": 0,
+            "tail": 4
+        },
+        "TGG": {
+            "head": 0,
+            "tail": 4,
+            "center": 1
+        },
+        "GG_BB": {
+            "head": 0
+        }
+    }
+}

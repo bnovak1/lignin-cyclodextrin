@@ -1,0 +1,39 @@
+WHOLEMOLECULES ENTITY0=1-147 ENTITY1=148-190
+
+lignin: COM ATOMS=148-162,164-190
+lignintail: COM ATOMS=148,150,152,158,160,162
+ligninhead: COM ATOMS=164,166,168,174,177,179
+bcdsecondary: COM ATOMS=8,29,59,71,92,113,134
+bcdprimary: COM ATOMS=20,41,62,83,104,125,146
+bcd: COM ATOMS=8,29,59,71,92,113,134,20,41,62,83,104,125,146
+
+dcl: DISTANCE ATOMS=bcd,lignin
+dclc: DISTANCE ATOMS=bcd,lignin COMPONENTS
+dcs: DISTANCE ATOMS=bcd,bcdsecondary
+dcsc: DISTANCE ATOMS=bcd,bcdsecondary COMPONENTS
+CUSTOM ...
+    LABEL=dnorm
+    ARG=dclc.x,dclc.y,dclc.z,dcsc.x,,dcsc.y,dcsc.z,dcs
+    VAR=lx,ly,lz,cx,cy,cz,cm
+    FUNC=(lx*cx+ly*cy+lz*cz)/cm
+    PERIODIC=NO
+... CUSTOM
+CUSTOM ...
+    LABEL=dtang
+    ARG=dcl,dnorm
+    VAR=d,dn
+    FUNC=sqrt(d^2-dn^2)
+    PERIODIC=NO
+... CUSTOM
+
+dht: DISTANCE ATOMS=ligninhead,lignintail
+dhtc: DISTANCE ATOMS=ligninhead,lignintail COMPONENTS
+CUSTOM ...
+    LABEL=orient
+    ARG=dclc.x,dclc.y,dclc.z,dhtc.x,dhtc.y,dhtc.z,dcl,dht
+    VAR=lx,ly,lz,cx,cy,cz,lm,cm
+    FUNC=(lx*cx+ly*cy+lz*cz)/(lm*cm)
+    PERIODIC=NO
+... CUSTOM
+
+PRINT ARG=dnorm,dtang,orient FILE=../analysis/0.0M_NaCl/TGG/one_BCD/colvar.dat
