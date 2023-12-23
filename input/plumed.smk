@@ -24,8 +24,7 @@ rule nowater_pdbs:
 rule plumed_CVs:
     input:
         plumed = os.path.join('{concentration}M_NaCl', '{lignol}', 'plumed.inp'),
-        traj = os.path.join('..', 'output', '{concentration}M_NaCl', '{lignol}', 'one_BCD', 
-            'nowater.xtc'),
+        traj = os.path.join('..', 'output', '{concentration}M_NaCl', '{lignol}', 'one_BCD', 'nowater.xtc'),
         pdb = rules.nowater_pdb.output.pdb
     output:
         colvar = os.path.join('..', 'analysis', '{concentration}M_NaCl', '{lignol}', 'one_BCD', 
@@ -36,3 +35,20 @@ rule plumed_CVs:
 rule plumed_CVss:
     input:
         expand(rules.plumed_CVs.output, concentration=['0.0'], lignol=config['LIGNOLS'])
+
+rule plots_2D:
+    input:
+        colvar = rules.plumed_CVs.output.colvar,
+        script = '../scripts/plots_2D.py'
+    output:
+        plot_dnorm_dtang = os.path.join('..', 'analysis', '{concentration}M_NaCl', '{lignol}', 'one_BCD', 'dnorm_dtang.png'),
+        plot_dnorm_dang = os.path.join('..', 'analysis', '{concentration}M_NaCl', '{lignol}', 'one_BCD', 'dnorm_orient.png'),
+        plot_dtang_orient = os.path.join('..', 'analysis', '{concentration}M_NaCl', '{lignol}', 'one_BCD', 'dtang_orient.png')
+    params:
+        output_dir = os.path.join('..', 'analysis', '{concentration}M_NaCl', '{lignol}', 'one_BCD')
+    shell:
+        'python ../scripts/plots_2D.py --lignol {wildcards.lignol} --colvar {input.colvar} --outdir {params.output_dir}'
+
+rule plots_2Ds:
+    input:
+        expand(rules.plots_2D.output, concentration=['0.0'], lignol=config['LIGNOLS'])
