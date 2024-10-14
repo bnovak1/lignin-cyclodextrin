@@ -1,54 +1,309 @@
-import os
+from pathlib import Path
+import numpy as np
 
-configfile: 'plumed.json'
+
+configfile: "plumed.json"
+
+
+output_dir = Path("../output/{concentration}M_NaCl/{lignol}/one_BCD")
+analysis_dir = Path("../analysis/{concentration}M_NaCl/{lignol}/one_BCD")
+
 
 # Need to get masses into pdb occupancy column for PLUMED.
 # Note that masses guessed by MDAnalysis do not match masses from topology exactly.
 rule nowater_pdb:
     input:
-        gro = os.path.join('..', 'output', '{concentration}M_NaCl', '{lignol}', 'one_BCD', 
-            'nowater.gro')
+        gro=output_dir / "nowater.gro",
     output:
-        pdb = os.path.join('..', 'analysis', '{concentration}M_NaCl', '{lignol}', 'nowater.pdb')
+        pdb=str(Path("../analysis/{concentration}M_NaCl/{lignol}/nowater.pdb")),
     run:
         import MDAnalysis as mda
+
         u = mda.Universe(input.gro, input.gro)
-        u.add_TopologyAttr('occupancies')
+        u.add_TopologyAttr("occupancies")
         u.atoms.occupancies = u.atoms.masses
         u.atoms.write(output.pdb)
 
+
 rule nowater_pdbs:
     input:
-        expand(rules.nowater_pdb.output.pdb, concentration=['0.0'], lignol=config['LIGNOLS'])
+        expand(
+            rules.nowater_pdb.output.pdb,
+            concentration=["0.0"],
+            lignol=config["LIGNOLS"],
+        ),
+
 
 rule plumed_CVs:
     input:
-        plumed = os.path.join('{concentration}M_NaCl', '{lignol}', 'plumed.inp'),
-        traj = os.path.join('..', 'output', '{concentration}M_NaCl', '{lignol}', 'one_BCD', 'nowater.xtc'),
-        pdb = rules.nowater_pdb.output.pdb
+        plumed=str(Path("{concentration}M_NaCl/{lignol}/plumed.inp")),
+        traj=str(output_dir / "nowater.xtc"),
+        pdb=rules.nowater_pdb.output.pdb,
     output:
-        colvar = os.path.join('..', 'analysis', '{concentration}M_NaCl', '{lignol}', 'one_BCD', 
-            'colvar.dat')
+        colvar=str(analysis_dir / "colvar.dat"),
     shell:
-        'plumed driver --plumed {input.plumed} --timestep 4 --mf_xtc {input.traj} --pdb {input.pdb}'
+        "plumed driver --plumed {input.plumed} --timestep 4 --mf_xtc {input.traj} --pdb {input.pdb}"
+
 
 rule plumed_CVss:
     input:
-        expand(rules.plumed_CVs.output, concentration=['0.0'], lignol=config['LIGNOLS'])
+        expand(rules.plumed_CVs.output, concentration=["0.0"], lignol=config["LIGNOLS"]),
+
 
 rule plots_2D:
     input:
-        colvar = rules.plumed_CVs.output.colvar,
-        script = '../scripts/plots_2D.py'
+        colvar=rules.plumed_CVs.output.colvar,
+        script=Path("../scripts/plots.py"),
     output:
-        plot_dnorm_dtang = os.path.join('..', 'analysis', '{concentration}M_NaCl', '{lignol}', 'one_BCD', 'dnorm_dtang.png'),
-        plot_dnorm_dang = os.path.join('..', 'analysis', '{concentration}M_NaCl', '{lignol}', 'one_BCD', 'dnorm_orient.png'),
-        plot_dtang_orient = os.path.join('..', 'analysis', '{concentration}M_NaCl', '{lignol}', 'one_BCD', 'dtang_orient.png')
+        scatter_dnorm_dtang=str(analysis_dir / "dnorm_dtang.png"),
+        kde_dnorm_dtang=str(analysis_dir / "dnorm_dtang_kde.png"),
+        scatter_dnorm_orient=str(analysis_dir / "dnorm_orient.png"),
+        scatter_dtang_orient=str(analysis_dir / "dtang_orient.png"),
     params:
-        output_dir = os.path.join('..', 'analysis', '{concentration}M_NaCl', '{lignol}', 'one_BCD')
+        output_dir=str(analysis_dir),
     shell:
-        'python ../scripts/plots_2D.py --lignol {wildcards.lignol} --colvar {input.colvar} --outdir {params.output_dir}'
+        "python {input.script} --lignol {wildcards.lignol} --colvar {input.colvar} --outdir {params.output_dir} --dimension 2"
+
 
 rule plots_2Ds:
     input:
-        expand(rules.plots_2D.output, concentration=['0.0'], lignol=config['LIGNOLS'])
+        expand(rules.plots_2D.output, concentration=["0.0"], lignol=config["LIGNOLS"]),
+
+
+rule plots_3D:
+    input:
+        colvar=rules.plumed_CVs.output.colvar,
+        script=Path("../scripts/plots.py"),
+    output:
+        scatter_html=str(analysis_dir / "high_density_scatter.html"),
+        scatter_png=str(analysis_dir / "high_density_scatter.png"),
+    params:
+        output_dir=str(analysis_dir),
+    shell:
+        """
+        python {input.script} \
+            --lignol {wildcards.lignol} \
+            --colvar {input.colvar} \
+            --outdir {params.output_dir} \
+            --dimension 3
+        convert {output.scatter_png} -trim {output.scatter_png}
+        """
+
+
+rule plots_3Ds:
+    input:
+        expand(rules.plots_3D.output, concentration=["0.0"], lignol=config["LIGNOLS"]),
+
+
+# rule elbow_plot:
+#     input:
+#         colvar = rules.plumed_CVs.output.colvar,
+#         script = Path("../scripts/elbow.py")
+#     output:
+#         elbow = str(analysis_dir / "elbow.png"),
+#         max_eps = str(analysis_dir / "max_eps.txt")
+#     params:
+#         output_dir = str(analysis_dir)
+#     shell:
+#         "python {input.script} --lignol {wildcards.lignol} --colvar {input.colvar} --outdir {params.output_dir}"
+
+# rule elbow_plots:
+#     input:
+#         expand(rules.elbow_plot.output, concentration=['0.0'], lignol=config['LIGNOLS'])
+
+# min_samples_range = range(config["MIN_SAMPLES_RANGE"][0], config["MIN_SAMPLES_RANGE"][1]+1)
+# min_samples_range_GG_BB = range(config["MIN_SAMPLES_RANGE_GG_BB"][0], config["MIN_SAMPLES_RANGE_GG_BB"][1]+1)
+
+rule clustering:
+    input:
+        colvar=rules.plumed_CVs.output.colvar,
+        script=Path("../scripts/clustering.py"),
+        read_script=Path("../scripts/read_colvar_file.py"),
+    output:
+        nclust=str(
+            analysis_dir / "clustering/HDBSCAN_model/nclusters_{min_samples}.dat"
+        ),
+    threads: 8
+    shell:
+        "python {input.script} --lignol {wildcards.lignol} --colvar {input.colvar} --min_samples {wildcards.min_samples} --nclusters_file {output.nclust}"
+
+rule clusterings:
+    input:
+        [
+            f"../analysis/{concentration}M_NaCl/{lignol}/one_BCD/clustering/HDBSCAN_model/nclusters_{min_samples}.dat"
+            for concentration in ["0.0"]
+            for lignol in config["LIGNOLS"]
+            for min_samples in range(
+                config["MIN_SAMPLES_RANGE"][lignol][0],
+                config["MIN_SAMPLES_RANGE"][lignol][1] + 1,
+            )
+        ],
+
+
+rule min_samples:
+    input:
+        models=lambda wildcards: [
+            str(
+                Path(
+                    analysis_dir,
+                    "clustering/HDBSCAN_model",
+                    "nclusters_" + str(min_samples) + ".dat",
+                )
+            )
+            for min_samples in range(
+                config["MIN_SAMPLES_RANGE"][wildcards.lignol][0],
+                config["MIN_SAMPLES_RANGE"][wildcards.lignol][1] + 1,
+            )
+        ],
+        script=Path("../scripts/min_samples.py"),
+    output:
+        html=str(analysis_dir / "clustering/min_samples.html"),
+        png=str(analysis_dir / "clustering/min_samples.png"),
+        min_samples=str(analysis_dir / "clustering/min_samples_best.dat"),
+    params:
+        drctry=str(analysis_dir / "clustering"),
+        nclusters=lambda wildcards: config["NCLUSTERS_TARGET"][wildcards.lignol],
+        min_samples_min=lambda wildcards: config["MIN_SAMPLES_RANGE"][
+            wildcards.lignol
+        ][0],
+        min_samples_max=lambda wildcards: config["MIN_SAMPLES_RANGE"][
+            wildcards.lignol
+        ][1],
+    shell:
+        "python {input.script} --lignol {wildcards.lignol} --min_samples_rng {params.min_samples_min} {params.min_samples_max} --dir {params.drctry}"
+
+rule min_sampless:
+    input:
+        expand(
+            rules.min_samples.output.min_samples,
+            concentration=["0.0"],
+            lignol=config["LIGNOLS"],
+        ),
+
+
+rule best_model:
+    input:
+        colvar=rules.plumed_CVs.output.colvar,
+        script=Path("../scripts/clustering.py"),
+        read_script=Path("../scripts/read_colvar_file.py"),
+        min_samples=rules.min_samples.output.min_samples,
+    output:
+        model=str(analysis_dir / "clustering/HDBSCAN_model/best_model.joblib"),
+    params:
+        min_samples=lambda wildcards: np.loadtxt(f"../analysis/{wildcards.concentration}M_NaCl/{wildcards.lignol}/one_BCD/clustering/min_samples_best.dat", dtype=int)
+    shell:
+        "python {input.script} --lignol {wildcards.lignol} --colvar {input.colvar} --min_samples {params.min_samples} --model_file {output.model}"
+
+rule best_models:
+    input:
+        expand(rules.best_model.output, concentration=["0.0"], lignol=config["LIGNOLS"]),   
+
+
+rule plot_clusters:
+    input:
+        script=Path("../scripts/plot_clusters.py"),
+        min_samples=rules.min_samples.output.min_samples,
+        colvar=rules.plumed_CVs.output.colvar,
+    output:
+        html=str(analysis_dir / "clustering/clusters.html"),
+        png=str(analysis_dir / "clustering/clusters.png"),
+        cluster_labels=str(analysis_dir / "clustering/cluster_labels.dat"),
+        nclusters=str(analysis_dir / "clustering/nclusters.dat"),
+    params:
+        drctry=str(analysis_dir / "clustering"),
+    shell:
+        "python ../scripts/plot_clusters.py --lignol {wildcards.lignol} --colvar {input.colvar} --min_samples {input.min_samples} --dir {params.drctry}"
+
+rule plot_clusterss:
+    input:
+        expand(
+            rules.plot_clusters.output, concentration=["0.0"], lignol=config["LIGNOLS"]
+        ),
+
+
+rule cluster_configs:
+    input:
+        cluster_labels=rules.plot_clusters.output.cluster_labels,
+        script=Path("../scripts/cluster_configs.py"),
+        gro=str(output_dir / "nowater.gro"),
+        xtc=str(output_dir / "nowater.xtc"),
+        nclusters=rules.plot_clusters.output.nclusters,
+    output:
+        xtc=str(analysis_dir / "clustering/cluster_configs_{cluster_id}.xtc"),
+    shell:
+        "python {input.script} --labels {input.cluster_labels} --gro {input.gro} --xtc_in {input.xtc} --xtc_out {output.xtc} --cluster_id {wildcards.cluster_id}"
+
+
+rule cluster_configss:
+    input:
+        [
+            str(
+                Path(
+                    "../analysis",
+                    concentration + "M_NaCl",
+                    lignol,
+                    "one_BCD/clustering",
+                    "cluster_configs_" + str(cluster_id) + ".xtc",
+                )
+            )
+            for concentration in ["0.0"]
+            for lignol in config["LIGNOLS"]
+            for cluster_id in range(
+                int(
+                    np.loadtxt(
+                        str(
+                            Path(
+                                "../analysis",
+                                concentration + "M_NaCl",
+                                lignol,
+                                "one_BCD/clustering/nclusters.dat",
+                            )
+                        )
+                    )
+                )
+            )
+        ],
+
+
+rule vmd_arrows:
+    input:
+        plumed=str(rules.plumed_CVs.input.plumed),
+        script=Path("../scripts/vmd_arrows.py"),
+    output:
+        tcl=str(analysis_dir / "arrows.tcl"),
+    params:
+        arrow_length=config["VMD_ARROW_LENGTH"],
+    shell:
+        "python {input.script} --plumed {input.plumed} --tcl {output.tcl} --arrow_length {params.arrow_length}"
+
+
+rule vmd_arrowss:
+    input:
+        expand(rules.vmd_arrows.output, concentration=["0.0"], lignol=config["LIGNOLS"]),
+
+
+rule cluster_configs_to_cluster_plots:
+    input:
+        cluster_plot=rules.plot_clusters.output.png,
+        cluster_configs=[
+            str(file)
+            for file in Path(
+                "../analysis/{concentration}M_NaCl/{lignol}/one_BCD/clustering"
+            ).glob("cluster_configs_*.tga")
+        ],
+        script=Path("../scripts/process_cluster_config_images.sh"),
+    output:
+        cluster_configs_plot=Path(
+            "../analysis/{concentration}M_NaCl/{lignol}/one_BCD/clustering/clusters_configs.png"
+        ),
+    shell:
+        "bash {input.script} {wildcards.lignol}"
+
+
+rule cluster_configs_to_cluster_plotss:
+    input:
+        expand(
+            rules.cluster_configs_to_cluster_plots.output,
+            concentration=["0.0"],
+            lignol=config["LIGNOLS"],
+        ),
