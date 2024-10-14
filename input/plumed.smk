@@ -36,7 +36,7 @@ rule nowater_pdbs:
 
 rule plumed_CVs:
     input:
-        plumed=str(Path("{concentration}M_NaCl/{lignol}/plumed.inp")),
+        plumed=str(Path("{concentration}M_NaCl/{lignol}/CVs.plumed.dat")),
         traj=str(output_dir / "nowater.xtc"),
         pdb=rules.nowater_pdb.output.pdb,
     output:
