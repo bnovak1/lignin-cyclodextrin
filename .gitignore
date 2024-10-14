@@ -3,3 +3,4 @@ output/
 notes/
 analysis/
 _Index*.md
+__pycache__/
