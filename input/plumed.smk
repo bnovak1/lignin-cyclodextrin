@@ -42,7 +42,7 @@ rule plumed_CVs:
     output:
         colvar=str(analysis_dir / "colvar.dat"),
     shell:
-        "plumed driver --plumed {input.plumed} --timestep 4 --mf_xtc {input.traj} --pdb {input.pdb}"
+        "singularity exec ~/singularity/GROMACS_2018.3-PLUMED_2.6/ plumed driver --plumed {input.plumed} --timestep 4 --mf_xtc {input.traj} --pdb {input.pdb}"
 
 
 rule plumed_CVss:
