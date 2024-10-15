@@ -81,17 +81,21 @@ def main():
     # Save the min_samples value to a file
     np.savetxt(Path(args.dir, "min_samples_best.dat"), [min_samples], fmt="%d")
 
-    # Plot the number of clusters as a function of min_samples
+    # Plot the number of clusters as a function of min_samples with plotly
     fig = px.line(
         x=n_clusters[:, 0],
         y=n_clusters[:, 1],
         markers=True,
         labels={"x": "min_samples", "y": "Number of clusters"},
     )
+    
+    # Save the plot in HTML format
     fig.write_html(Path(args.dir, "min_samples.html"))
 
-    # Use a red circle to highlight the min_samples value used    
+    # Plot the number of clusters as a function of min_samples with matplotlib
     plt.plot(n_clusters[:, 0], n_clusters[:, 1], "k.-")
+
+    # Use a red circle to highlight the min_samples value used    
     idx = n_clusters[:, 0] == min_samples
     plt.plot(
         n_clusters[idx, 0],
@@ -100,9 +104,13 @@ def main():
         mfc="none",
         label=f"min_samples = {min_samples} used\n{n_clusters[idx, 1][0]} clusters",
     )
+    
+    # Labels and legend
     plt.xlabel("min_samples")
     plt.ylabel("Number of clusters")
     plt.legend()
+    
+    # Save the plot in PNG format
     plt.savefig(Path(args.dir, "min_samples.png"), dpi=300, bbox_inches="tight")
 
 
