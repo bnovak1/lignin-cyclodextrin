@@ -205,7 +205,7 @@ rule best_models:
 rule plot_clusters:
     input:
         script=Path("../scripts/plot_clusters.py"),
-        min_samples=rules.min_samples.output.min_samples,
+        model=rules.best_model.output.model,
         colvar=rules.plumed_CVs.output.colvar,
     output:
         html=str(analysis_dir / "clustering/clusters.html"),
@@ -215,7 +215,7 @@ rule plot_clusters:
     params:
         drctry=str(analysis_dir / "clustering"),
     shell:
-        "python ../scripts/plot_clusters.py --lignol {wildcards.lignol} --colvar {input.colvar} --min_samples {input.min_samples} --dir {params.drctry}"
+        "python ../scripts/plot_clusters.py --lignol {wildcards.lignol} --colvar {input.colvar} --model {input.model} --dir {params.drctry}"
 
 rule plot_clusterss:
     input:
