@@ -34,6 +34,7 @@ rule nowater_pdbs:
         ),
 
 
+# Compute collective variables using PLUMED.
 rule plumed_CVs:
     input:
         plumed=str(Path("{concentration}M_NaCl/{lignol}/CVs.plumed.dat")),
@@ -50,6 +51,7 @@ rule plumed_CVss:
         expand(rules.plumed_CVs.output, concentration=["0.0"], lignol=config["LIGNOLS"]),
 
 
+# Plot 2D and 3D scatter plots of the collective variables.
 rule plots_2D:
     input:
         colvar=rules.plumed_CVs.output.colvar,
@@ -114,6 +116,7 @@ rule plots_3Ds:
 # min_samples_range = range(config["MIN_SAMPLES_RANGE"][0], config["MIN_SAMPLES_RANGE"][1]+1)
 # min_samples_range_GG_BB = range(config["MIN_SAMPLES_RANGE_GG_BB"][0], config["MIN_SAMPLES_RANGE_GG_BB"][1]+1)
 
+# HDBSCAN clustering.
 rule clustering:
     input:
         colvar=rules.plumed_CVs.output.colvar,
@@ -139,7 +142,7 @@ rule clusterings:
             )
         ],
 
-
+# Find the best value for the HDBSCAN min_samples parameter.
 rule min_samples:
     input:
         models=lambda wildcards: [
@@ -180,7 +183,7 @@ rule min_sampless:
             lignol=config["LIGNOLS"],
         ),
 
-
+# Save the best HDBSCAN model.
 rule best_model:
     input:
         colvar=rules.plumed_CVs.output.colvar,
@@ -198,7 +201,7 @@ rule best_models:
     input:
         expand(rules.best_model.output, concentration=["0.0"], lignol=config["LIGNOLS"]),   
 
-
+# Plot the clusters.
 rule plot_clusters:
     input:
         script=Path("../scripts/plot_clusters.py"),
@@ -220,7 +223,7 @@ rule plot_clusterss:
             rules.plot_clusters.output, concentration=["0.0"], lignol=config["LIGNOLS"]
         ),
 
-
+# Save the configurations belonging to each cluster to separate XTC files.
 rule cluster_configs:
     input:
         cluster_labels=rules.plot_clusters.output.cluster_labels,
@@ -265,6 +268,7 @@ rule cluster_configss:
         ],
 
 
+# Draw arrows from lignin head to tail, and from the cyclodextrin COM to the cyclodextrin secondary face oxygen atoms onto a snapshot in VMD.
 rule vmd_arrows:
     input:
         plumed=str(rules.plumed_CVs.input.plumed),
@@ -282,6 +286,7 @@ rule vmd_arrowss:
         expand(rules.vmd_arrows.output, concentration=["0.0"], lignol=config["LIGNOLS"]),
 
 
+# Add example configurations with vector arrow to the cluster plots.
 rule cluster_configs_to_cluster_plots:
     input:
         cluster_plot=rules.plot_clusters.output.png,
