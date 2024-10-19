@@ -2,11 +2,11 @@
 WHOLEMOLECULES ENTITY0=1-147 ENTITY1=148-198
 
 # Define centers of mass for various groups of atoms
-lignin: COM ATOMS=148-162,172-198
+lignin: COM ATOMS=148-198
 lignintail: COM ATOMS=148,150,152,158,160,162
 ligninhead: COM ATOMS=172,174,176,182,185,187
 bcdsecondary: COM ATOMS=8,12,29,33,50,54,71,75,92,96,113,117,134,138
-bcd: COM ATOMS=8,29,59,71,92,113,134,20,41,62,83,104,125,146
+bcd: COM ATOMS=1-147
 
 # Calculate distances & vectors between centers of mass
 dcl: DISTANCE ATOMS=bcd,lignin

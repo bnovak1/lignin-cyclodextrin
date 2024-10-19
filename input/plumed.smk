@@ -286,7 +286,7 @@ rule vmd_arrowss:
         expand(rules.vmd_arrows.output, concentration=["0.0"], lignol=config["LIGNOLS"]),
 
 
-# Add example configurations with vector arrow to the cluster plots.
+# Add example configurations with vector arrows to the cluster plots.
 rule cluster_configs_to_cluster_plots:
     input:
         cluster_plot=rules.plot_clusters.output.png,
