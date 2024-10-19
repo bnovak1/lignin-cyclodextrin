@@ -16,7 +16,7 @@ Workflow
 --------
 1. Parse command line arguments.
 2. Loop over the specified range of `min_samples` values to read the number of clusters from files.
-3. Identify spike positions where the number of clusters changes and then immediately changes back.
+3. Identify spike positions where the number of clusters changes and then changes back after 1-3 points at the new value.
 4. Determine the optimal `min_samples` value based on the last spike position.
 5. Save the optimal `min_samples` value to a file.
 6. Plot the number of clusters as a function of `min_samples` and save the plot in both HTML and PNG formats.
@@ -63,14 +63,53 @@ def main():
 
     n_clusters = np.array(n_clusters)
 
-    # Find spike positions where the number of clusters changes then immediately changes back
-    diff2 = np.diff(n_clusters[:, 1], n=2)
-    idx = np.where(np.abs(diff2) == 2)[0] + 1
-    idx_last_spike = idx[-1]
+    # Calculate the difference in the number of clusters
+    diff = np.diff(n_clusters[:, 1])
 
-    # min_samples taken just after the last spike position if the spike is upward (diff2 = -2)
-    # min_samples taken at the next occurrence of n_clusters corresponding to the value at the spike if the spike is downward (diff2 = 2)
-    if diff2[idx_last_spike - 1] == -2:
+    # Initialize spike positions and directions
+    spike_positions = []
+    spike_directions = []
+
+    # Find spike positions and directions where the number of clusters changes then changes back after one point at the new value
+    patterns = [[1, -1], [-1, 1]]
+    for pattern in patterns:
+        for i in range(1, len(diff)):
+            if np.all(diff[i - 1:i + 1] == pattern):
+                spike_positions.append(i)
+                spike_directions.append(pattern[0])
+
+    # Find spike positions where the number of clusters changes then changes back after two points at the new value
+    patterns = [[1, 0, -1], [-1, 0, 1]]
+    for pattern in patterns:
+        for i in range(2, len(diff)):
+            if np.all(diff[i - 2:i + 1] == pattern):
+                spike_positions.append(i)
+                spike_directions.append(pattern[0])
+                
+    # Find spike positions where the number of clusters changes then changes back after three points at the new value
+    patterns = [[1, 0, 0, -1], [-1, 0, 0, 1]]
+    for pattern in patterns:
+        for i in range(3, len(diff)):
+            if np.all(diff[i - 3:i + 1] == pattern):
+                spike_positions.append(i)
+                spike_directions.append(pattern[0])
+                
+    # Sort the spike positions and directions
+    spike_positions = np.array(spike_positions)
+    spike_directions = np.array(spike_directions)
+    idx = np.argsort(spike_positions)
+    spike_positions = spike_positions[idx]
+    spike_directions = spike_directions[idx]
+                
+    # Find the last spike position
+    idx_last_spike = spike_positions[-1]
+    dir_last_spike = spike_directions[-1]
+    
+    # import pdb; pdb.set_trace()
+
+    # min_samples taken just after the last spike position if the spike is up (dir_last_spike = 1).
+    # min_samples taken at the next occurrence of n_clusters corresponding to the value at the spike if the spike is down (dir_last_spike = -1).
+    if dir_last_spike == 1:
         min_samples = n_clusters[idx_last_spike + 1, 0]
     else:
         n_clusters_spike = n_clusters[idx_last_spike, 1]
@@ -88,14 +127,14 @@ def main():
         markers=True,
         labels={"x": "min_samples", "y": "Number of clusters"},
     )
-    
+
     # Save the plot in HTML format
     fig.write_html(Path(args.dir, "min_samples.html"))
 
     # Plot the number of clusters as a function of min_samples with matplotlib
     plt.plot(n_clusters[:, 0], n_clusters[:, 1], "k.-")
 
-    # Use a red circle to highlight the min_samples value used    
+    # Use a red circle to highlight the min_samples value used
     idx = n_clusters[:, 0] == min_samples
     plt.plot(
         n_clusters[idx, 0],
@@ -104,12 +143,12 @@ def main():
         mfc="none",
         label=f"min_samples = {min_samples} used\n{n_clusters[idx, 1][0]} clusters",
     )
-    
+
     # Labels and legend
     plt.xlabel("min_samples")
     plt.ylabel("Number of clusters")
     plt.legend()
-    
+
     # Save the plot in PNG format
     plt.savefig(Path(args.dir, "min_samples.png"), dpi=300, bbox_inches="tight")
 
