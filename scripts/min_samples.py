@@ -16,8 +16,8 @@ Workflow
 --------
 1. Parse command line arguments.
 2. Loop over the specified range of `min_samples` values to read the number of clusters from files.
-3. Identify spike positions where the number of clusters changes and then changes back after 1-3 points at the new value.
-4. Determine the optimal `min_samples` value based on the last spike position.
+3. Identify the optimal `min_samples` value based on the position of the last increase in the number of clusters.
+4. Determine the optimal `min_samples` value based on the last increase in the number of clusters.
 5. Save the optimal `min_samples` value to a file.
 6. Plot the number of clusters as a function of `min_samples` and save the plot in both HTML and PNG formats.
 """
@@ -63,59 +63,15 @@ def main():
 
     n_clusters = np.array(n_clusters)
 
-    # Calculate the difference in the number of clusters
+    # Find the last position where the number of clusters increases
     diff = np.diff(n_clusters[:, 1])
-
-    # Initialize spike positions and directions
-    spike_positions = []
-    spike_directions = []
-
-    # Find spike positions and directions where the number of clusters changes then changes back after one point at the new value
-    patterns = [[1, -1], [-1, 1]]
-    for pattern in patterns:
-        for i in range(1, len(diff)):
-            if np.all(diff[i - 1:i + 1] == pattern):
-                spike_positions.append(i)
-                spike_directions.append(pattern[0])
-
-    # Find spike positions where the number of clusters changes then changes back after two points at the new value
-    patterns = [[1, 0, -1], [-1, 0, 1]]
-    for pattern in patterns:
-        for i in range(2, len(diff)):
-            if np.all(diff[i - 2:i + 1] == pattern):
-                spike_positions.append(i)
-                spike_directions.append(pattern[0])
+    idx_increase = np.where(diff > 0)[0][-1]
                 
-    # Find spike positions where the number of clusters changes then changes back after three points at the new value
-    patterns = [[1, 0, 0, -1], [-1, 0, 0, 1]]
-    for pattern in patterns:
-        for i in range(3, len(diff)):
-            if np.all(diff[i - 3:i + 1] == pattern):
-                spike_positions.append(i)
-                spike_directions.append(pattern[0])
-                
-    # Sort the spike positions and directions
-    spike_positions = np.array(spike_positions)
-    spike_directions = np.array(spike_directions)
-    idx = np.argsort(spike_positions)
-    spike_positions = spike_positions[idx]
-    spike_directions = spike_directions[idx]
-                
-    # Find the last spike position
-    idx_last_spike = spike_positions[-1]
-    dir_last_spike = spike_directions[-1]
-    
-    # import pdb; pdb.set_trace()
-
-    # min_samples taken just after the last spike position if the spike is up (dir_last_spike = 1).
-    # min_samples taken at the next occurrence of n_clusters corresponding to the value at the spike if the spike is down (dir_last_spike = -1).
-    if dir_last_spike == 1:
-        min_samples = n_clusters[idx_last_spike + 1, 0]
-    else:
-        n_clusters_spike = n_clusters[idx_last_spike, 1]
-        idx = np.where(n_clusters[:, 1] == n_clusters_spike)[0]
-        idx_diff = idx - idx_last_spike
-        min_samples = n_clusters[idx[np.where(idx_diff > 0)[0][0]], 0]
+    # min_samples taken at the next occurrence of n_clusters corresponding to the value at the last increase in n_clusters
+    n_clusters_increase = n_clusters[idx_increase, 1]
+    idx = np.where(n_clusters[:, 1] == n_clusters_increase)[0]
+    idx_diff = idx - idx_increase
+    min_samples = n_clusters[idx[np.where(idx_diff > 0)[0][0]], 0]
 
     # Save the min_samples value to a file
     np.savetxt(Path(args.dir, "min_samples_best.dat"), [min_samples], fmt="%d")
