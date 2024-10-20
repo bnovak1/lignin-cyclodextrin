@@ -1,11 +1,13 @@
 
 import argparse
+import json
 from pathlib import Path
 import sys
 
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
+import plotly
 import plotly.express as px
 import plotly.io as pio
 
@@ -90,7 +92,7 @@ def main():
                 "camera": {
                     "up": {"x": 0, "y": 0, "z": 1},
                     "center": {"x": 0, "y": 0, "z": 0},
-                    "eye": {"x": 1.5, "y": 1.5, "z": 1.5},
+                    "eye": {"x": 1.53, "y": 1.53, "z": 1.53},
                 },
             },
             showlegend=True,
@@ -125,7 +127,12 @@ def main():
     fig.update_traces(marker_line_color="rgba(0,0,0,0)")
 
     fig.update_layout(plot_bgcolor="rgba(0,0,0,0)")
+    
+    # Save the plot in HTML and JSON formats
     fig.write_html(Path(args.dir, "clusters.html"))
+    with open(Path(args.dir, "clusters.json"), "w", encoding="utf-8") as f:
+        json.dump(fig.to_plotly_json(), f, cls=plotly.utils.PlotlyJSONEncoder)
+
 
     fig.update_layout(showlegend=False)
     pio.write_image(fig, Path(args.dir, "clusters.png"), scale=4)
