@@ -133,7 +133,7 @@ rule clustering:
         ),
     threads: 8
     shell:
-        "python {input.script} --lignol {wildcards.lignol} --colvar {input.colvar} --min_samples {wildcards.min_samples} --nclusters_file {output.nclust}"
+        "python {input.script} --colvar {input.colvar} --min_samples {wildcards.min_samples} --nclusters_file {output.nclust}"
 
 rule clusterings:
     input:

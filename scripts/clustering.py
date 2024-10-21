@@ -17,7 +17,6 @@ from read_colvar_file import read_colvar
 
 # Command line inputs
 parser = argparse.ArgumentParser()
-parser.add_argument("--lignol", type=str, help="Lignol abbreviation")
 parser.add_argument("--colvar", type=str, help="Input file with collective variables data")
 parser.add_argument("--min_samples", type=int, help="Minimum number of samples")
 parser.add_argument("--model_file", type=str, default=None,
@@ -27,7 +26,7 @@ parser.add_argument("--nclusters_file", type=str, default=None,
 args = parser.parse_args()
 
 # Read collective variables
-colvars = read_colvar(args.colvar, args.lignol)
+colvars = read_colvar(args.colvar)
 
 # Scale and cluster the data
 X = colvars.copy().values
