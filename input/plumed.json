@@ -21,10 +21,5 @@
             150
         ]
     },
-    "NCLUSTERS_TARGET": {
-        "GG": 5,
-        "TGG": 6,
-        "GG_BB": 3
-    },
     "VMD_ARROW_LENGTH": 9.0
 }
