@@ -170,7 +170,6 @@ rule min_samples:
         min_samples=str(analysis_dir / "clustering/min_samples_best.dat"),
     params:
         drctry=str(analysis_dir / "clustering"),
-        nclusters=lambda wildcards: config["NCLUSTERS_TARGET"][wildcards.lignol],
         min_samples_min=lambda wildcards: config["MIN_SAMPLES_RANGE"][
             wildcards.lignol
         ][0],
@@ -201,10 +200,17 @@ rule best_model:
         min_samples=rules.min_samples.output.min_samples,
     output:
         model=str(analysis_dir / "clustering/HDBSCAN_model/best_model.joblib"),
+        nclusters=str(analysis_dir / "clustering/best_model_nclusters.dat"),
     params:
         min_samples=lambda wildcards: np.loadtxt(f"../analysis/{wildcards.lignol}/one_BCD/clustering/min_samples_best.dat", dtype=int)
     shell:
-        "python {input.script} --lignol {wildcards.lignol} --colvar {input.colvar} --min_samples {params.min_samples} --model_file {output.model}"
+        """
+        python {input.script} \
+            --colvar {input.colvar} \
+            --min_samples {params.min_samples} \
+            --model_file {output.model} \
+            --nclusters_file {output.nclusters}
+        """
 
 rule best_models:
     input:
@@ -330,3 +336,26 @@ rule cluster_configs_to_cluster_plotss:
             rules.cluster_configs_to_cluster_plots.output,
             lignol=config["LIGNOLS"],
         ),
+
+# Fractions of configurations belonging to each cluster.
+# The fractions are calculated with respect to the total number of configurations where the lignin dimer is bound to the center of the cyclodextrin.
+rule clusters_fractions:
+    input:
+        cluster_labels=rules.plot_clusters.output.cluster_labels,
+        script=Path("../scripts/cluster_fractions.py"),
+        center_bound_clusters=Path("{lignol}/center_bound_cluster_labels.json"),
+    output:
+        fractions=str(analysis_dir / "clustering/fractions.csv"),
+        fractions_writing=str(writing_dir / "tbl-fractions_{lignol}" / "fractions.csv"),
+    shell:
+        """
+        python {input.script} \
+            --labels {input.cluster_labels} \
+            --center_bound_clusters {input.center_bound_clusters} \
+            --outfile {output.fractions}
+        cp {output.fractions} {output.fractions_writing}
+        """
+
+rule clusters_fractionss:
+    input:
+        expand(rules.clusters_fractions.output, lignol=config["LIGNOLS"]),
