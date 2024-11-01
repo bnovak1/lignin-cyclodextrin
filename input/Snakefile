@@ -2,7 +2,7 @@ from pathlib import Path
 import numpy as np
 
 
-configfile: "plumed.json"
+configfile: "Snakefile.json"
 
 
 output_dir = Path("../output/{lignol}/one_BCD")
