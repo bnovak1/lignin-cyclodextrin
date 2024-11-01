@@ -1,0 +1,1180 @@
+---
+title: HDBSCAN clustering for identification of states with lignin dimers bound
+  to $\beta$-cyclodextrin from molecular dynamics simulations
+author: Brian Novak
+toc: true
+number-sections: false
+highlight-style: pygments
+format:
+  html:
+    code-fold: true
+    html-math-method: katex
+    css: styles.css
+bibliography: /home/bnovak1/GoogleDrive/obsidian/zotero.bib
+csl: /home/bnovak1/Zotero/styles/american-chemical-society.csl
+tags:
+  - cyclodextrin
+  - lignin
+  - HDBSCAN
+  - DBSCAN
+  - molecular_dynamics_simulation
+  - clustering
+  - principal_component_analysis
+  - PLUMED
+  - scikit-learn
+  - rdkit
+---
+
+# Introduction {#sec-introduction}
+
+In our previous study[@dean_complexation_2022], we investigated the interaction between $\beta$-cyclodextrin[@noauthor_cyclodextrin_nodate] and [lignin](https://en.wikipedia.org/wiki/Lignin) dimer derivatives through experimental methods, [molecular dynamics simulations](https://www.gromacs.org/), and [docking](https://vina.scripps.edu/). The relevant chemical structures are depicted in @fig-dimers_BCD_labelled. An introduction to the project can be found [here](https://brian-novak.vercel.app/career/website/lignin/lignin-dimer-derivatives-interacting-with-v-cyclodextrin/), and a summary of the publication is available [here](https://brian-novak.vercel.app/career/website/lignin/complexation-of-lignin-dimers-with-v-cyclodextrin-and-binding-stability-analysis-by-esi-ms-isothermal-titration-calorimetry-and-molecular-dynamics-simulations/). During the molecular dynamics simulations, we observed multiple types of dimer-cyclodextrin bound states. We estimated the proportions of these states in unbiased simulations using the following procedure:
+
+1. Computed a large number of collective variables including angle between lignin dimer and $\beta$-cyclodextrin principal axes, distances between atoms in the $\beta$-cyclodextrin molecule to atoms in the lignin dimer molecule, and lignin dihedral angles
+2. Applied [principal component analysis](https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html) (PCA) to reduce the number of dimensions to two
+3. Clustered the trajectory configurations using [DBSCAN](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.DBSCAN.html) clustering to separate the different states into distinct clusters
+4. Counted the number of points in each cluster and computed proportions of each one
+
+The procedure details can be found in the [Supporting Information](https://pubs.acs.org/doi/suppl/10.1021/acs.jpcb.1c09190/suppl_file/jp1c09190_si_001.pdf) on pages 9-18. The primary challenge was encountered in step 3, where the states were not distinctly separated. Trial and error was necessary to select DBSCAN parameters that successfully differentiated the clusters.
+
+![Structures of lignin dimer derivatives (1-3), and $\beta$-cyclodextrin. The lower right structures are 3D top and side views of $\beta$-cyclodextrin. The 3D representations show $\beta$-cyclodextrin from top and side views, with hydrogen atoms in white, carbon atoms in cyan, and oxygen atoms in red. The face of $\beta$-cyclodextrin with two hydroxyl (-OH) groups per unit (seen in the top view) is referred to as the secondary face, while the other face is referred to as the primary face.  [rdkit](https://www.rdkit.org/) 2023.03.3 was used for the 2D representations and [VMD](https://www.ks.uiuc.edu/Research/vmd/)[@humphrey_vmd:_1996] 1.9.3 was used to create the 3D representations.](000_Attachments/fig-dimers_BCD_labelled/dimers_BCD_labelled.png){#fig-dimers_BCD_labelled}
+
+```{python}
+"""
+The files related to this figure are in ./000_Attachments/fig-dimers_BCD_labelled.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+from pathlib import Path
+import subprocess
+import numpy as np
+from rdkit import Chem
+from rdkit.Chem import Draw
+
+import warnings
+
+# Suppress UserWarning
+warnings.filterwarnings("ignore", category=UserWarning)
+
+# Generate dimer structures
+smi_dir = "./000_Attachments/fig-dimers_BCD_labelled"
+smi_list = [Path(smi_dir, smi) for smi in ['GG.smi', 'TGG.smi', 'GGBB.smi']]
+rdkit_list = [Chem.MolFromSmiles(np.loadtxt(smi, dtype=str)[0]) for smi in smi_list]
+dimers_img = Draw.MolsToGridImage(rdkit_list, molsPerRow=3, subImgSize=(400, 200))
+outfile = Path(smi_dir, "dimers.png")
+with open(outfile, "wb") as png:
+	png.write(dimers_img.data)
+subprocess.run(f"mogrify -trim {outfile}", shell=True) # ImageMagick
+
+# Generate cyclodextrin 2D structure
+smi = Path(smi_dir, "cyclodextrin.smi")
+rdkit = Chem.MolFromSmiles(np.loadtxt(smi, dtype=str)[0])
+outfile = Path(smi_dir, "BCD.png")
+img = Draw.MolToFile(rdkit, outfile, size=(500, 500))
+subprocess.run(f"mogrify -trim {outfile}", shell=True)
+
+# A cyclodextrin PDB file, BCD.pdb, is included.
+# VMD structures were created manually (top.tga, side.tga).
+# Structures were combined into one image (dimers_BCD.png) manually
+
+# Label the image with all structures
+script_file = Path(smi_dir, "structures_labelling.sh")
+subprocess.run(f"bash {script_file} {smi_dir}", shell=True);
+```
+
+In this study, three carefully selected collective variables were utilized to distinguish the observed states, eliminating the need for dimensionality reduction. Additionally, [HDBSCAN](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.HDBSCAN.html) was used instead of DBSCAN for clustering. Finding the point where the number of clusters as a function of the `min_samples` = `min_cluster_size` parameter for HDBSCAN started to never increase provided a way to identify a "natural" number of clusters (see [Determination of `min_samples`](#sec-min_samples) for details on the algorithm).  The analysis uncovered center-bound configuration types that were not evident through mere visual inspection of the trajectories. However, these were subsets of the visually observed types, and only one cluster was dominant for each group of clusters corresponding to the visually observed types. Therefore, `min_samples` was increased to get similar clusters as those identified in the previous study[@dean_complexation_2022].
+
+# Methods {#sec-methods}
+
+## Collective variables {#sec-collective-variables}
+
+Three collective variables were defined based on important configurations seen in unbiased simulations. The collective variables were computed using PLUMED[@tribello_plumed_2014] 2.6.6.
+
+### Normal distance {#sec-dnorm}
+
+The first collective variable was a signed distance from the cyclodextrin to the lignin dimer along the direction of a vector pointing from the cyclodextrin center through the secondary face.
+
+$$
+d_n = \frac{\overrightarrow{CL} \cdot \overrightarrow{CS}}{\left|\overrightarrow{CS}\right|}
+$$ {#eq-dnorm}
+
+$\overrightarrow{CL}$ is the vector pointing from the cyclodextrin center of mass to the lignin center of mass and $\overrightarrow{CS}$ is the vector pointing from the cyclodextrin center of mass to the center of the hydroxyl oxygen atoms in the cyclodextrin secondary face.
+
+```{python}
+#| label: fig-CS_vector
+#| fig-cap: "$\\overrightarrow{CS}$ represented as a green arrow. In the cyclodextrin structure, gray atoms are carbon, red atoms are oxygen, and hydrogen atoms are not shown."
+#| 
+"""
+The files related to this figure are in ./000_Attachments/fig-CS_vector.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+import MDAnalysis as mda
+import py3Dmol
+
+# PDB file name
+bcd_pdb = "000_Attachments/fig-CS_vector/BCD.pdb"
+
+# Load the PDB file
+u = mda.Universe(bcd_pdb)
+
+# Select the atoms in the cyclodextrin
+cyclodextrin = u.select_atoms("resname BCDC")
+
+# Calculate the center of mass of the cyclodextrin
+com_cyclodextrin = cyclodextrin.center_of_mass()
+
+# Select the oxygen atoms in the secondary face (O2 and O3)
+oxygen_atoms = cyclodextrin.select_atoms("name O2 O3")
+
+# Calculate the center of mass of the oxygen atoms
+com_oxygen = oxygen_atoms.center_of_mass()
+
+# Calculate the CS vector
+cs_vector = com_oxygen - com_cyclodextrin
+
+# Create a py3Dmol view
+view = py3Dmol.view(width=800, height=600)
+
+# Add the cyclodextrin molecule in CPK representation
+view.addModel(open(bcd_pdb, "r").read(), "pdb")
+view.setStyle({"model": 0}, {"sphere": {"scale": 0.3}, "stick": {}})
+
+# Add the CS vector
+view.addArrow(
+    {
+        "start": {"x": com_cyclodextrin[0], "y": com_cyclodextrin[1], "z": com_cyclodextrin[2]},
+        "end": {"x": com_oxygen[0], "y": com_oxygen[1], "z": com_oxygen[2]},
+        "radius": 0.2,
+        "color": "green",
+    }
+)
+
+# Label the CS vector with an offset
+label_offset = [0.3, 0, 0]
+view.addLabel(
+    "CS",
+    {
+        "position": {
+            "x": com_cyclodextrin[0] + cs_vector[0] + label_offset[0],
+            "y": com_cyclodextrin[1] + cs_vector[1] + label_offset[1],
+            "z": com_cyclodextrin[2] + cs_vector[2] + label_offset[2],
+        },
+        "backgroundOpacity": 0,
+        "fontColor": "black",
+        "fontSize": 20,
+    },
+)
+
+# Set the background color and zoom to fit the molecule
+view.setBackgroundColor("white")
+view.zoomTo()
+
+# Rotate the view to show the CS vector
+view.rotate(-70, "x")
+
+# Show the view
+view.show()
+```
+
+```{python}
+#| label: fig-CL_vector
+#| fig-cap: "$\\overrightarrow{CL}$ represented as a green arrow. In the molecular structures, gray atoms are carbon, red atoms are oxygen, and hydrogen atoms are not shown."
+
+"""
+The files related to this figure are in ./000_Attachments/fig-CL_vector.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+import numpy as np
+import MDAnalysis as mda
+import py3Dmol
+
+# PDB file names
+bcd_pdb = "000_Attachments/fig-CL_vector/BCD.pdb"
+lignin_pdb = "000_Attachments/fig-CL_vector/GG.pdb"
+
+# Load the PDB file for lignin
+u_lignin = mda.Universe(lignin_pdb)
+
+# Select the lignin molecule
+lignin = u_lignin.select_atoms("all")
+
+# Calculate the center of mass of the lignin molecule
+com_lignin = lignin.center_of_mass()
+
+# Load the PDB file for cyclodextrin
+u_cyclodextrin = mda.Universe(bcd_pdb)
+
+# Select the cyclodextrin molecule
+cyclodextrin = u_cyclodextrin.select_atoms("all")
+
+# Calculate the center of mass of the cyclodextrin molecule
+com_cyclodextrin = cyclodextrin.center_of_mass()
+
+# Calculate the CL vector
+cl_vector = com_lignin - com_cyclodextrin
+
+# Recalculate the CL vector
+com_lignin = lignin.center_of_mass()
+cl_vector = com_lignin - com_cyclodextrin
+
+# Create a py3Dmol view
+view = py3Dmol.view(width=800, height=600)
+
+# Add the cyclodextrin molecule in CPK representation
+view.addModel(open(bcd_pdb, "r").read(), "pdb")
+view.setStyle({"model": 0}, {"sphere": {"scale": 0.3}, "stick": {}})
+
+# Add the lignin molecule in CPK representation
+view.addModel(open(lignin_pdb, "r").read(), "pdb")
+view.setStyle({"model": 1}, {"sphere": {"scale": 0.3}, "stick": {}})
+
+# Add the CL vector
+view.addArrow(
+    {
+        "start": {"x": com_cyclodextrin[0], "y": com_cyclodextrin[1], "z": com_cyclodextrin[2]},
+        "end": {"x": com_lignin[0], "y": com_lignin[1], "z": com_lignin[2]},
+        "radius": 0.2,
+        "color": "green",
+    }
+)
+
+# Label the CL vector
+label_offset = [-1.2, 0.4, 0]
+view.addLabel(
+    "CL",
+    {
+        "position": {
+            "x": com_cyclodextrin[0] + label_offset[0],
+            "y": com_cyclodextrin[1] + label_offset[1],
+            "z": com_cyclodextrin[2] + label_offset[2],
+        },
+        "backgroundOpacity": 0,
+        "fontColor": "black",
+        "fontSize": 20,
+    },
+)
+
+# Label the cyclodextrin molecule
+label_offset = [0, 8.8, 0]
+view.addLabel(
+    "cyclodextrin",
+    {
+        "position": {
+            "x": com_cyclodextrin[0] + label_offset[0],
+            "y": com_cyclodextrin[1] + label_offset[1],
+            "z": com_cyclodextrin[2] + label_offset[2],
+        },
+        "backgroundOpacity": 0,
+        "fontColor": "black",
+        "fontSize": 20,
+    },
+)
+
+# Label the lignin molecule
+label_offset = [0.5, 5, 0]
+view.addLabel(
+    "lignin dimer 1",
+    {
+        "position": {
+            "x": com_lignin[0] + label_offset[0],
+            "y": com_lignin[1] + label_offset[1],
+            "z": com_lignin[2] + label_offset[2],
+        },
+        "backgroundOpacity": 0,
+        "fontColor": "black",
+        "fontSize": 20,
+    },
+)
+
+# Set the background color and zoom to fit the models
+view.setBackgroundColor("white")
+view.zoomTo()
+
+# Zoom in a bit
+view.zoom(1.4)
+
+# Show the view
+view.show()
+```
+
+```{python}
+#| label: fig-dnorm
+#| fig-cap: "The signed distance from the cyclodextrin to the lignin dimer along $\\overrightarrow{CS}$, $d_n$, shown as a green cylinder. In the molecular structures, gray atoms are carbon, red atoms are oxygen, cyclodextrin is translucent, and hydrogen atoms are not shown."
+
+"""
+The files related to this figure are in ./000_Attachments/fig-dnorm.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+import py3Dmol
+import numpy as np
+import MDAnalysis as mda
+
+# Load PDB files with mdanalysis
+cyclodextrin_pdb = "000_Attachments/fig-dnorm/BCD.pdb"
+lignin_pdb = "000_Attachments/fig-dnorm/GG.pdb"
+cyclodextrin = mda.Universe(cyclodextrin_pdb)
+lignin = mda.Universe(lignin_pdb)
+
+# Calculate centers of mass
+cyclodextrin_com = cyclodextrin.atoms.center_of_mass()
+oxygen_com = cyclodextrin.select_atoms("name O2 O3").center_of_mass()
+lignin_com = lignin.atoms.center_of_mass()
+
+# Calculate vectors
+CS_vector = oxygen_com - cyclodextrin_com
+CL_vector = lignin_com - cyclodextrin_com
+
+# Calculate dnorm
+dnorm = np.dot(CS_vector, CL_vector) / np.linalg.norm(CS_vector)
+
+# Create py3Dmol visualization
+view = py3Dmol.view(width=800, height=600)
+
+# Add the cyclodextrin molecule in CPK representation. Make it translucent.
+view.addModel(open(cyclodextrin_pdb, "r").read(), "pdb")
+view.setStyle({"model": 0}, {"sphere": {"scale": 0.3, "opacity": 0.5}, "stick": {"opacity": 0.5}})
+
+# Add the lignin molecule in CPK representation
+view.addModel(open(lignin_pdb, "r").read(), "pdb")
+view.setStyle({"model": 1}, {"sphere": {"scale": 0.3}, "stick": {}})
+
+# Add green cylinder to represent dnorm
+start = cyclodextrin_com
+end = cyclodextrin_com + dnorm * (CS_vector / np.linalg.norm(CS_vector))
+view.addCylinder(
+    {
+        "start": {"x": start[0], "y": start[1], "z": start[2]},
+        "end": {"x": end[0], "y": end[1], "z": end[2]},
+        "radius": 0.2,
+        "color": "green",
+    }
+)
+
+# Label dnorm at the center of the cylinder with an offset.
+# Use a white background, black text, and a font size of 20.
+cylinder_center = (start + end) / 2
+label_offset = [0.25, 0, 0]
+view.addLabel(
+    "dₙ",
+    {
+        "position": {
+            "x": cylinder_center[0] + label_offset[0],
+            "y": cylinder_center[1] + label_offset[1],
+            "z": cylinder_center[2] + label_offset[2],
+        },
+        "backgroundOpacity": 0,
+        "fontColor": "black",
+        "fontSize": 20,
+    },
+)
+
+# Label the cyclodextrin molecule
+label_offset = [0, 0, 3.8]
+view.addLabel(
+    "cyclodextrin",
+    {
+        "position": {
+            "x": cyclodextrin_com[0] + label_offset[0],
+            "y": cyclodextrin_com[1] + label_offset[1],
+            "z": cyclodextrin_com[2] + label_offset[2],
+        },
+        "backgroundOpacity": 0,
+        "fontColor": "black",
+        "fontSize": 20,
+    },
+)
+
+# Label the lignin molecule
+label_offset = [-1.65, 0, 3.9]
+view.addLabel(
+    "lignin dimer 1",
+    {
+        "position": {
+            "x": lignin_com[0] + label_offset[0],
+            "y": lignin_com[1] + label_offset[1],
+            "z": lignin_com[2] + label_offset[2],
+        },
+        "backgroundOpacity": 0,
+        "fontColor": "black",
+        "fontSize": 20,
+    },
+)
+
+# Set the background color and zoom to fit the models
+view.setBackgroundColor("white")
+view.zoomTo()
+
+# Rotate the view to see the dnorm vector
+view.rotate(90, "x")
+
+# Zoom in a bit
+view.zoom(1.1)
+
+view.show()
+```
+
+### Tangential distance {#sec-dtang}
+
+The second collective variable was the distance from the cyclodextrin center of mass to the lignin center of mass in the direction perpendicular to $\overrightarrow{CS}$. It is the length of the second leg of a right triangle with hypotenuse $|\overrightarrow{CL}|$ and one leg $d_n$.
+
+$$
+d_t = \sqrt{\left|\overrightarrow{CL}\right|^2 - d_n^2}
+$$ {#eq-dtang}
+
+```{python}
+#| label: fig-dtang
+#| fig-cap: "The distance from the cyclodextrin center of mass to the lignin center of mass in the direction perpendicular to $\\overrightarrow{CS}$, $d_t$, represented as a green cylinder. In the molecular structures, gray atoms are carbon, red atoms are oxygen, cyclodextrin is translucent, and hydrogen atoms are not shown."
+
+"""
+The files related to this figure are in ./000_Attachments/fig-dtang.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+import MDAnalysis as mda
+import numpy as np
+import py3Dmol
+
+# PDB file paths
+cyclodextrin_pdb = "000_Attachments/fig-dtang/BCD.pdb"
+lignin_pdb = "000_Attachments/fig-dtang/GG.pdb"
+
+# Load the PDB files
+u_cyclodextrin = mda.Universe(cyclodextrin_pdb)
+u_lignin = mda.Universe(lignin_pdb)
+
+# Calculate the center of mass for cyclodextrin and lignin
+com_cyclodextrin = u_cyclodextrin.atoms.center_of_mass()
+com_lignin = u_lignin.atoms.center_of_mass()
+
+# Calculate the center of mass for oxygen atoms in cyclodextrin secondary face
+oxygen_atoms = u_cyclodextrin.select_atoms("name O2 O3")
+com_oxygen = oxygen_atoms.center_of_mass()
+
+# Calculate the vectors
+CS_vector = com_oxygen - com_cyclodextrin
+CL_vector = com_lignin - com_cyclodextrin
+
+# Calculate the projection of CL_vector onto the plane perpendicular to CS_vector
+CS_unit_vector = CS_vector / np.linalg.norm(CS_vector)
+projection = np.dot(CL_vector, CS_unit_vector) * CS_unit_vector
+dtang_vector = CL_vector - projection
+dtang = np.linalg.norm(dtang_vector)
+
+# Create the py3Dmol visualization
+view = py3Dmol.view()
+view.addModel(open(cyclodextrin_pdb, "r").read(), "pdb")
+view.addModel(open(lignin_pdb, "r").read(), "pdb")
+
+# Set CPK representation for both molecules. Make the cyclodextrin translucent.
+view.setStyle({"model": 0}, {"sphere": {"scale": 0.3, "opacity": 0.5}, "stick": {"opacity": 0.5}})
+view.setStyle({"model": 1}, {"sphere": {"scale": 0.3}, "stick": {}})
+
+# Add a green cylinder to represent dtang
+start = com_cyclodextrin
+end = com_cyclodextrin + dtang_vector
+view.addCylinder(
+    {
+        "start": {"x": float(start[0]), "y": float(start[1]), "z": float(start[2])},
+        "end": {"x": float(end[0]), "y": float(end[1]), "z": float(end[2])},
+        "radius": 0.2,
+        "color": "green",
+    }
+)
+
+# Label dtang
+label_offset = [-5, 0, 0.3]
+view.addLabel(
+    "dₜ",
+    {
+        "position": {
+            "x": float(end[0] + label_offset[0]),
+            "y": float(end[1] + label_offset[1]),
+            "z": float(end[2] + label_offset[2]),
+        },
+        "backgroundColor": "white",
+        "fontColor": "black",
+        "fontSize": 20,
+    },
+)
+
+# Label cyclodextrin
+label_offset = [-4, 0, 3.8]
+view.addLabel(
+    "cyclodextrin",
+    {
+        "position": {
+            "x": float(com_cyclodextrin[0] + label_offset[0]),
+            "y": float(com_cyclodextrin[1] + label_offset[1]),
+            "z": float(com_cyclodextrin[2] + label_offset[2]),
+        },
+        "backgroundOpacity": 0,
+        "fontColor": "black",
+        "fontSize": 20,
+    },
+)
+
+# Label lignin
+label_offset = [-1.7, 0, 3.8]
+view.addLabel(
+    "lignin dimer 1",
+    {
+        "position": {
+            "x": float(com_lignin[0] + label_offset[0]),
+            "y": float(com_lignin[1] + label_offset[1]),
+            "z": float(com_lignin[2] + label_offset[2]),
+        },
+        "backgroundOpacity": 0,
+        "fontColor": "black",
+        "fontSize": 20,
+    },
+)
+
+# Set the background color and zoom to fit the models
+view.setBackgroundColor("white")
+view.zoomTo()
+
+# Rotate the view to show dtang
+view.rotate(90, "x")
+
+view.show()
+```
+
+### Relative orientation {#sec-orient}
+
+The third collective variable was the cosine of the angle between the vector from the center of the ring atoms in the lignin head to the center of the ring atoms in the lignin tail ($\overrightarrow{HT}$) and $\overrightarrow{CS}$.
+
+$$
+\cos\theta = \frac{\overrightarrow{HT} \cdot \overrightarrow{CS}}{\left|\overrightarrow{HT}\right|\left|\overrightarrow{CS}\right|}
+$$ {#eq-costheta}
+
+```{python}
+#| label: fig-HT_vector
+#| fig-cap: "The lignin head to tail vector, $\\overrightarrow{HT}$, represented as a green arrow. In the translucent lignin structure, gray atoms are carbon, red atoms are oxygen, and hydrogen atoms are not shown."
+
+"""
+The files related to this figure are in ./000_Attachments/fig-HT_vector.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+import py3Dmol
+import numpy as np
+import MDAnalysis as mda
+
+# Load PDB file with MDAnalysis
+lignin_pdb = "000_Attachments/fig-HT_vector/GG.pdb"
+lignin = mda.Universe(lignin_pdb)
+
+# Lignin head and tail positions for HT vector
+lignin_head = lignin.select_atoms("resid 1 and name C1 C2 C3 C4 C5 C6").center_of_mass()
+lignin_tail = lignin.select_atoms("resid 2 and name C1 C2 C3 C4 C5 C6").center_of_mass()
+
+# Create py3Dmol visualization
+view = py3Dmol.view(width=800, height=600)
+
+# Add the lignin molecule in CPK representation
+view.addModel(open(lignin_pdb, "r").read(), "pdb")
+view.setStyle({"model": 0}, {"sphere": {"scale": 0.3, "opacity": 0.5}, "stick": {"opacity": 0.5}})
+
+# Add green arrow to represent HT vector
+view.addArrow(
+    {
+        "start": {
+            "x": float(lignin_head[0]),
+            "y": float(lignin_head[1]),
+            "z": float(lignin_head[2]),
+        },
+        "end": {
+            "x": float(lignin_tail[0]),
+            "y": float(lignin_tail[1]),
+            "z": float(lignin_tail[2]),
+        },
+        "radius": 0.2,
+        "color": "green",
+    }
+)
+
+# Label HT
+label_offset = [1, 0, 0]
+view.addLabel(
+    "HT",
+    {
+        "position": {
+            "x": float(lignin_tail[0] + label_offset[0]),
+            "y": float(lignin_tail[1] + label_offset[1]),
+            "z": float(lignin_tail[2] + label_offset[2]),
+        },
+        "backgroundOpacity": 0,
+        "fontColor": "black",
+        "fontSize": 20,
+    },
+)
+
+# Label lignin
+lignin_com = lignin.atoms.center_of_mass()
+label_offset = [-3, 0, 6]
+view.addLabel(
+    "lignin dimer 1",
+    {
+        "position": {
+            "x": float(lignin_com[0] + label_offset[0]),
+            "y": float(lignin_com[1] + label_offset[1]),
+            "z": float(lignin_com[2] + label_offset[2]),
+        },
+        "backgroundOpacity": 0,
+        "fontColor": "black",
+        "fontSize": 20,
+    },
+)
+
+# Set the background color and zoom to fit the models
+view.setBackgroundColor("white")
+view.zoomTo()
+
+# Rotate for better view of the HT vector
+view.rotate(-90, "x")
+view.rotate(-30, "z")
+
+# Show the view
+view.show()
+```
+
+```{python}
+#| label: fig-theta
+#| fig-cap: "The angle $\\theta$ between $\\overrightarrow{HT}$ and $\\overrightarrow{CS}$ represented as a green arrow. The origin of $\\overrightarrow{HT}$ is shifted to the cyclodextrin center of mass. In the molecular structures, gray atoms are carbon, red atoms are oxygen, cyclodextrin is translucent, and hydrogen atoms are not shown."
+
+"""
+The files related to this figure are in ./000_Attachments/fig-theta.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+import py3Dmol
+import numpy as np
+import MDAnalysis as mda
+
+# Load PDB files with MDAnalysis
+cyclodextrin_pdb = "000_Attachments/fig-theta/BCD.pdb"
+lignin_pdb = "000_Attachments/fig-theta/GG.pdb"
+cyclodextrin = mda.Universe(cyclodextrin_pdb)
+lignin = mda.Universe(lignin_pdb)
+
+# Calculate centers of mass
+cyclodextrin_com = cyclodextrin.atoms.center_of_mass()
+oxygen_com = cyclodextrin.select_atoms("name O2 O3").center_of_mass()
+
+# Calculate CS vector
+CS_vector = oxygen_com - cyclodextrin_com
+
+# Calculate HT vector
+lignin_head = lignin.select_atoms("resid 1 and name C1 C2 C3 C4 C5 C6").center_of_mass()
+lignin_tail = lignin.select_atoms("resid 2 and name C1 C2 C3 C4 C5 C6").center_of_mass()
+HT_vector = lignin_head - lignin_tail
+
+# Shift HT vector to originate at cyclodextrin center of mass
+HT_vector_shifted = HT_vector + cyclodextrin_com
+
+# Calculate the cosine of the angle θ
+cos_theta = np.dot(HT_vector, CS_vector) / (np.linalg.norm(HT_vector) * np.linalg.norm(CS_vector))
+theta = np.arccos(cos_theta)
+
+# Create py3Dmol visualization
+view = py3Dmol.view(width=800, height=600)
+
+# Add the cyclodextrin molecule in CPK representation
+view.addModel(open(cyclodextrin_pdb, "r").read(), "pdb")
+view.setStyle({"model": 0}, {"sphere": {"scale": 0.3, "opacity": 0.5}, "stick": {"opacity": 0.5}})
+
+# Add the lignin molecule in CPK representation
+view.addModel(open(lignin_pdb, "r").read(), "pdb")
+view.setStyle({"model": 1}, {"sphere": {"scale": 0.3}, "stick": {}})
+
+# Add green arrows to represent HT and CS vectors
+view.addArrow(
+    {
+        "start": {
+            "x": float(cyclodextrin_com[0]),
+            "y": float(cyclodextrin_com[1]),
+            "z": float(cyclodextrin_com[2]),
+        },
+        "end": {
+            "x": float(HT_vector_shifted[0]),
+            "y": float(HT_vector_shifted[1]),
+            "z": float(HT_vector_shifted[2]),
+        },
+        "radius": 0.2,
+        "color": "green",
+    }
+)
+view.addArrow(
+    {
+        "start": {
+            "x": float(cyclodextrin_com[0]),
+            "y": float(cyclodextrin_com[1]),
+            "z": float(cyclodextrin_com[2]),
+        },
+        "end": {"x": float(oxygen_com[0]), "y": float(oxygen_com[1]), "z": float(oxygen_com[2])},
+        "radius": 0.2,
+        "color": "green",
+    }
+)
+
+# Label HT, CS, and θ
+label_offset = [0, 0, 1]
+view.addLabel(
+    "HT",
+    {
+        "position": {
+            "x": float(HT_vector_shifted[0] + label_offset[0]),
+            "y": float(HT_vector_shifted[1] + label_offset[1]),
+            "z": float(HT_vector_shifted[2] + label_offset[2]),
+        },
+        "backgroundOpacity": 0,
+        "fontColor": "black",
+        "fontSize": 20,
+    },
+)
+label_offset = [-3, 0, 1]
+view.addLabel(
+    "CS",
+    {
+        "position": {
+            "x": float(oxygen_com[0] + label_offset[0]),
+            "y": float(oxygen_com[1] + label_offset[1]),
+            "z": float(oxygen_com[2] + label_offset[2]),
+        },
+        "backgroundOpacity": 0,
+        "fontColor": "black",
+        "fontSize": 20,
+    },
+)
+label_offset = [0, 0, 1.6]
+view.addLabel(
+    "θ",
+    {
+        "position": {
+            "x": float(cyclodextrin_com[0] + label_offset[0]),
+            "y": float(cyclodextrin_com[1] + label_offset[1]),
+            "z": float(cyclodextrin_com[2] + label_offset[2]),
+        },
+        "backgroundOpacity": 0,
+        "fontColor": "black",
+        "fontSize": 20,
+    },
+)
+
+# Label cyclodextrin
+label_offset = [-4, 0, 5.8]
+view.addLabel(
+    "cyclodextrin",
+    {
+        "position": {
+            "x": float(cyclodextrin_com[0] + label_offset[0]),
+            "y": float(cyclodextrin_com[1] + label_offset[1]),
+            "z": float(cyclodextrin_com[2] + label_offset[2]),
+        },
+        "backgroundOpacity": 0,
+        "fontColor": "black",
+        "fontSize": 20,
+    },
+)
+
+# Label lignin
+lignin_com = lignin.atoms.center_of_mass()
+label_offset = [-9, 0, -1]
+view.addLabel(
+    "lignin dimer 1",
+    {
+        "position": {
+            "x": float(lignin_com[0] + label_offset[0]),
+            "y": float(lignin_com[1] + label_offset[1]),
+            "z": float(lignin_com[2] + label_offset[2]),
+        },
+        "backgroundOpacity": 0,
+        "fontColor": "black",
+        "fontSize": 20,
+    },
+)
+
+# Set the background color and zoom to fit the models
+view.setBackgroundColor("white")
+view.zoomTo()
+
+# Rotate for better view of θ
+view.rotate(-90, "x")
+view.rotate(-30, "z")
+
+# Show the view
+view.show()
+```
+
+## HDBSCAN clustering {#sec-hdbscan}
+
+### Determination of `min_samples` {#sec-min_samples}
+
+The best value of `min_samples` = `min_cluster_size` used in the HDBSCAN algorithm was determined using the following algorithm:
+
+1. Find the spike positions where the number of clusters as a function of `min_samples` changes, stays at the new value for 3 or less points, then changes back.
+2. If the spike with the largest value of `min_samples` is upward, then the best value of `min_samples` is the value immediately following the value corresponding to the spike. If the spike with the largest value of `min_samples` is downward, the best value of `min_samples` is found at the index corresponding to the next occurrence of the number of clusters equal to the number of clusters at the spike.
+
+# Results {#sec-results}
+
+## Number of clusters {#sec-nclusters}
+
+The numbers of clusters as a function of `min_samples` are shown in @fig-nclusters_1, @fig-nclusters_2, and @fig-nclusters_3. The best values for `min_samples` and the corresponding numbers of clusters were determined using the algorithm described in [Determination of `min_samples`](#sec-min_samples).
+
+![Number of clusters for dimer 1 as a function of `min_samples` for the HDBSCAN algorithm. The best value for `min_samples` and the corresponding number of clusters is circled in red and indicated in the legend.](000_Attachments/fig-nclusters_GG/min_samples.png){#fig-nclusters_1}
+
+```{python}
+"""
+The files related to this figure are in ./000_Attachments/fig-nclusters_GG.
+A singularity image files is ...
+This figure was generated using snakemake in the input directory.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+import subprocess
+import os
+from pathlib import Path
+
+# Current directory
+current_dir = Path().resolve()
+
+# Change directory
+input_dir = Path("../../input").resolve()
+os.chdir(input_dir)
+
+# Run the snakemake command
+subprocess.run(
+    [
+        "snakemake",
+        "-s",
+        "plumed.smk",
+        "../writing/HDBSCAN_clustering_for_identification_of_states_with_lignin_dimers_bound_to_cyclodextrin_from_molecular_dynamics_simulations/000_Attachments/fig-nclusters_GG/min_samples.png",
+        "-j",
+    ],
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+)
+
+# Change directory back
+os.chdir(current_dir)
+```
+
+![Number of clusters for dimer 2 as a function of `min_samples` for the HDBSCAN algorithm. The best value for `min_samples` and the corresponding number of clusters is circled in red and indicated in the legend.](000_Attachments/fig-nclusters_TGG/min_samples.png){#fig-nclusters_2}
+
+```{python}
+"""
+The files related to this figure are in ./000_Attachments/fig-nclusters_TGG.
+A singularity image files is ...
+This figure was generated using snakemake in the input directory.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+import subprocess
+import os
+from pathlib import Path
+
+# Current directory
+current_dir = Path().resolve()
+
+# Change directory
+input_dir = Path("../../input").resolve()
+os.chdir(input_dir)
+
+# Run the snakemake command
+subprocess.run(
+    [
+        "snakemake",
+        "-s",
+        "plumed.smk",
+        "../writing/HDBSCAN_clustering_for_identification_of_states_with_lignin_dimers_bound_to_cyclodextrin_from_molecular_dynamics_simulations/000_Attachments/fig-nclusters_TGG/min_samples.png",
+        "-j",
+    ],
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+)
+
+# Change directory back
+os.chdir(current_dir)
+```
+
+![Number of clusters for dimer 3 as a function of `min_samples` for the HDBSCAN algorithm. The best value for `min_samples` and the corresponding number of clusters is circled in red and indicated in the legend.](000_Attachments/fig-nclusters_GG_BB/min_samples.png){#fig-nclusters_3}
+
+```{python}
+"""
+The files related to this figure are in ./000_Attachments/fig-nclusters_GG_BB.
+A singularity image files is ...
+This figure was generated using snakemake in the input directory.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+import subprocess
+import os
+from pathlib import Path
+
+# Current directory
+current_dir = Path().resolve()
+
+# Change directory
+input_dir = Path("../../input").resolve()
+os.chdir(input_dir)
+
+# Run the snakemake command
+subprocess.run(
+    [
+        "snakemake",
+        "-s",
+        "plumed.smk",
+        "../writing/HDBSCAN_clustering_for_identification_of_states_with_lignin_dimers_bound_to_cyclodextrin_from_molecular_dynamics_simulations/000_Attachments/fig-nclusters_GG_BB/min_samples.png",
+        "-j",
+    ],
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+)
+
+# Change directory back
+os.chdir(current_dir)
+```
+
+## Cluster scatter plots {#sec-cluster-scatter}
+
+The 3D scatter plots of the collective variables showing the HDBSCAN clusters for each dimer are shown in @fig-clusters-1, @fig-clusters-2, and @fig-clusters-3.
+
+```{python}
+"""
+The files related to this figure are in ./000_Attachments/fig-clusters_GG.
+This figure was generated using snakemake in the input directory.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+import subprocess
+import os
+from pathlib import Path
+
+# Current directory
+current_dir = Path().resolve()
+
+# Change directory
+input_dir = Path("../../input").resolve()
+
+# Run the snakemake command
+subprocess.run(
+    [
+        "snakemake",
+        "-s",
+        "plumed.smk",
+        "../writing/HDBSCAN_clustering_for_identification_of_states_with_lignin_dimers_bound_to_cyclodextrin_from_molecular_dynamics_simulations/000_Attachments/fig-clusters-GG/clusters_configs.png",
+        "-j",
+    ],
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+)
+
+# Change directory back
+os.chdir(current_dir)
+
+# Interactive 3D scatter plot
+import plotly.io as pio
+import json
+
+# Load the figure from the JSON file
+with open("./000_Attachments/fig-clusters_GG/clusters.json", 'r') as f:
+    fig_data = json.load(f)
+
+# Create a figure from the loaded data
+fig = pio.from_json(json.dumps(fig_data))
+
+# Display the figure
+fig.show()
+```
+
+![Interactive and static 3D scatter plots of the collective variables showing the HDBSCAN clusters for dimer 1. Representative configurations for each cluster are shown around the static scatter plot except for the cyan and brown clusters which include configurations where the lignin dimer interacts (weakly) with the outside of the cyclodextrin ring or where there is no direct contact between the lignin dimer and cyclodextrin at all. The arrows in the configurations point in the directions of $\overrightarrow{CS}$ and $\overrightarrow{HT}$. HDBSCAN outlier points are not plotted.](000_Attachments/fig-clusters_GG/clusters_configs.png){#fig-clusters-1}
+
+```{python}
+"""
+The files related to this figure are in ./000_Attachments/fig-clusters_TGG.
+This figure was generated using snakemake in the input directory.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+import subprocess
+import os
+from pathlib import Path
+
+# Current directory
+current_dir = Path().resolve()
+
+# Change directory
+input_dir = Path("../../input").resolve()
+
+# Run the snakemake command
+subprocess.run(
+    [
+        "snakemake",
+        "-s",
+        "plumed.smk",
+        "../writing/HDBSCAN_clustering_for_identification_of_states_with_lignin_dimers_bound_to_cyclodextrin_from_molecular_dynamics_simulations/000_Attachments/fig-clusters_TGG/clusters_configs.png",
+        "-j",
+    ],
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+)
+
+# Change directory back
+os.chdir(current_dir)
+
+# Interactive 3D scatter plot
+import plotly.io as pio
+import json
+
+# Load the figure from the JSON file
+with open("./000_Attachments/fig-clusters_TGG/clusters.json", 'r') as f:
+    fig_data = json.load(f)
+
+# Create a figure from the loaded data
+fig = pio.from_json(json.dumps(fig_data))
+
+# Display the figure
+fig.show()
+```
+
+![Interactive and static 3D scatter plots of the collective variables showing the HDBSCAN clusters for dimer 2. Representative configurations for each cluster are shown around the static scatter plot except for the orange cluster which includes configurations where the lignin dimer interacts (weakly) with the outside of the cyclodextrin ring or where there is no direct contact between the lignin dimer and cyclodextrin at all. The arrows in the configurations point in the directions of $\overrightarrow{CS}$ and $\overrightarrow{HT}$. HDBSCAN outlier points are not plotted.](000_Attachments/fig-clusters_TGG/clusters_configs.png){#fig-clusters-2}
+
+```{python}
+"""
+The files related to this figure are in ./000_Attachments/fig-clusters_GG_BB.
+This figure was generated using snakemake in the input directory.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+import subprocess
+import os
+from pathlib import Path
+
+# Current directory
+current_dir = Path().resolve()
+
+# Change directory
+input_dir = Path("../../input").resolve()
+
+# Run the snakemake command
+subprocess.run(
+    [
+        "snakemake",
+        "-s",
+        "plumed.smk",
+        "../writing/HDBSCAN_clustering_for_identification_of_states_with_lignin_dimers_bound_to_cyclodextrin_from_molecular_dynamics_simulations/000_Attachments/fig-clusters-GG_BB/clusters_configs.png",
+        "-j",
+    ],
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+)
+
+# Change directory back
+os.chdir(current_dir)
+
+# Interactive 3D scatter plot
+import plotly.io as pio
+import json
+
+# Load the figure from the JSON file
+with open("./000_Attachments/fig-clusters_GG_BB/clusters.json", 'r') as f:
+    fig_data = json.load(f)
+
+# Create a figure from the loaded data
+fig = pio.from_json(json.dumps(fig_data))
+
+# Display the figure
+fig.show()
+```
+
+![Interactive and static 3D scatter plots of the collective variables showing the HDBSCAN clusters for dimer 3. Representative configurations for each cluster are shown around the static scatter plot except for the purple cluster which includes configurations where the lignin dimer interacts (weakly) with the outside of the cyclodextrin ring or where there is no direct contact between the lignin dimer and cyclodextrin at all. The arrows in the configurations point in the directions of $\overrightarrow{CS}$ and $\overrightarrow{HT}$. HDBSCAN outlier points are not plotted.](000_Attachments/fig-clusters_GG_BB/clusters_configs.png){#fig-clusters-3}
+
+## Proportion of configurations belonging to each cluster: Original `min_samples` values {#sec-fractions-orig}
+
+The proportions of the configurations with a lignin dimer bound to the center of the cyclodextrin belonging to each cluster for each dimer were calculated; configurations where the lignin dimer interacts (weakly) with the outside of the cyclodextrin ring or where there is no direct contact between the lignin dimer and cyclodextrin at all were not considered in the total number of configurations. Clusters with similar binding configurations were grouped together and proportions were computed for those groups as well. The proportions are shown in @tbl-fractions-1, @tbl-fractions-2, and @tbl-fractions-3.
+
+```{python}
+#| label: tbl-fractions-1
+#| tbl-cap: "Proportions of center-bound configurations belonging to each cluster for dimer 1. Refer to @fig-clusters-1 to see the clusters and configurations corresponding to the label numbers. The head:sec, center:sec, and tail:sec labels refer to cluster groups which may include configurations from multiple clusters which are listed in the rows above them up until another group is encountered. The head:sec group refers to configurations where the lignin dimer head is closer to the center of the cyclodextrin than the lignin dimer tail or center and the center of the lignin dimer is closer to the cyclodextrin secondary face than the cyclodextrin primary face. The center:sec group refers to configurations where the lignin dimer center is closer to the center of the cyclodextrin than the lignin dimer head or tail and the center of the lignin dimer is closer to the cyclodextrin secondary face than the cyclodextrin primary face. The tail:sec group refers to configurations where the lignin dimer tail is closer to the center of the cyclodextrin than the lignin dimer head or center and the center of the lignin dimer is closer to the cyclodextrin secondary face than the cyclodextrin primary face."
+
+"""
+The data for this table is in ./000_Attachments/tbl-fractions_GG/fractions.csv.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+from IPython.display import display, HTML
+import pandas as pd
+
+# Read CSV file into a DataFrame
+df = pd.read_csv("./000_Attachments/tbl-fractions_GG/fractions.csv")
+
+# Convert DataFrame to HTML without the index
+html_table = df.to_html(index=False)
+
+# Display the HTML table in the notebook
+display(HTML(html_table))
+```
+
+There are 3 cluster groups defined for dimer 1: head:sec, center:sec, and tail:sec (see the caption of @tbl-fractions-1 for the definitions). The head:sec group consists of 5 clusters. However, most of the configurations belong to cluster 6. Clusters 4, 5, 7 and 8 account for a total of about 2% of all configurations, while cluster 6 has about 50% of all configurations. The center:sec and tail:sec groups each consist of a single cluster. It may be best to increase `min_samples` so that the configurations in clusters 4-8 are merged into one cluster.
+
+```{python}
+#| label: tbl-fractions-2
+#| tbl-cap: "Proportions of center-bound configurations belonging to each cluster for dimer 2. Refer to @fig-clusters-2 to see the clusters and configurations corresponding to the label numbers. The head:sec, center:sec, and tail:pri labels refer to cluster groups which may include configurations from multiple clusters which are listed in the rows above them up until another group is encountered. The head:sec group refers to configurations where the lignin dimer head is closer to the center of the cyclodextrin than the lignin dimer tail or center and the center of the lignin dimer is closer to the cyclodextrin secondary face than the cyclodextrin primary face. The center:sec group refers to configurations where the lignin dimer center is closer to the center of the cyclodextrin than the lignin dimer head or tail and the center of the lignin dimer is closer to the cyclodextrin secondary face than the cyclodextrin primary face. The tail:pri group refers to configurations where the lignin dimer tail is closer to the center of the cyclodextrin than the lignin dimer head or center and the center of the lignin dimer is closer to the cyclodextrin primary face than the cyclodextrin secondary face."
+
+"""
+The data for this table is in ./000_Attachments/tbl-fractions_TGG/fractions.csv.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+from IPython.display import display, HTML
+import pandas as pd
+
+# Read CSV file into a DataFrame
+df = pd.read_csv("./000_Attachments/tbl-fractions_TGG/fractions.csv")
+
+# Convert DataFrame to HTML without the index
+html_table = df.to_html(index=False)
+
+# Display the HTML table in the notebook
+display(HTML(html_table))
+```
+
+There are 3 cluster groups defined for dimer 2: head:sec, center:sec, and tail:pri (see the caption of @tbl-fractions-2 for the definitions). The head:sec group consists of 2 clusters. However, most of the configurations belong to cluster 5. Cluster 4 accounts for about 2% of all configurations, while cluster 5 has about 72% of all configurations. The center:sec group consists of 2 clusters. However, most of the configurations belong to cluster 2. Cluster 3 accounts for about 3% of all configurations, while cluster 2 has about 23% of all configurations. The tail:pri group consists of a single cluster. It may be best to increase `min_samples` so that the configurations in clusters 4 and 5 and clusters 2 and 3 are merged into two clusters.
+
+```{python}
+#| label: tbl-fractions-3
+#| tbl-cap: "Proportions of center-bound configurations belonging to each cluster for dimer 3. Refer to @fig-clusters-3 to see the clusters and configurations corresponding to the label numbers. The end:sec and center labels refer to cluster groups which may include configurations from multiple clusters which are listed in the rows above them up until another cluster group label is encountered. The end:sec group refers to configurations where one of the lignin dimer ends is closer to the center of the cyclodextrin than the lignin dimer center and the center of the lignin dimer is closer to the cyclodextrin secondary face than the cyclodextrin primary face. The center group refers to configurations where the lignin dimer center is near the cyclodextrin center."
+
+"""
+The data for this table is in ./000_Attachments/tbl-fractions_GG_BB/fractions.csv.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+from IPython.display import display, HTML
+import pandas as pd
+
+# Read CSV file into a DataFrame
+df = pd.read_csv("./000_Attachments/tbl-fractions_GG_BB/fractions.csv")
+
+# Convert DataFrame to HTML without the index
+html_table = df.to_html(index=False)
+
+# Display the HTML table in the notebook
+display(HTML(html_table))
+```
+
+There are 2 cluster groups defined for dimer 2: head:sec, center:sec, and tail:pri (see the caption of @tbl-fractions-3 for the definitions). The head:sec group consists of 2 clusters. However, most of the configurations belong to cluster 5. Cluster 4 accounts for about 2% of all configurations, while cluster 5 has about 72% of all configurations. The center:sec group consists of 2 clusters. However, most of the configurations belong to cluster 2. Cluster 3 accounts for about 3% of all configurations, while cluster 2 has about 23% of all configurations. The tail:pri group consists of a single cluster. It may be best to increase `min_samples` so that the configurations in clusters 4 and 5 and clusters 2 and 3 are merged into two clusters.
+
+## Proportion of configurations belonging to each cluster: Merged clusters {#sec-fractions-merge}
+
+**As discussed in [Proportion of configurations belonging to each cluster: Original `min_samples` values](#sec-fractions-orig), each cluster group typically includes one cluster that contains the majority of configurations within that group. Consequently, for groups containing multiple clusters, these clusters were merged by increasing the `min_samples` parameter. This also allows for direct comparison with the cluster fractions reported in the previous study[@dean_complexation_2022].**
+
+# Conclusions {#sec-conclusions}
+
+sdf
+
+# Future work {#sec-future}
+
+fwe
