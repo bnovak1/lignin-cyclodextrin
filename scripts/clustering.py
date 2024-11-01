@@ -1,5 +1,5 @@
 """
-Run HDBSCAN clustering on collective variables data for various values of min_samples and save the number of clusters to a file.
+Run HDBSCAN clustering on collective variables data for a given value of min_samples and save the model and number of clusters to files.
 """
 
 import argparse

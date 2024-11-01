@@ -47,7 +47,7 @@ def main():
     infile = Path(args.model)
     pipe = joblib.load(infile)
     clustering = pipe["clustering"]
-    colvars = read_colvar(args.colvar, args.lignol)
+    colvars = read_colvar(args.colvar)
     colvars["label"] = clustering.labels_.astype(int)
     idx_cluster = colvars["label"] >= 0
     colvars = colvars[idx_cluster]
