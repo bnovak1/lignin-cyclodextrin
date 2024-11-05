@@ -3,7 +3,6 @@ Run HDBSCAN clustering on collective variables data for a given value of min_sam
 """
 
 import argparse
-from pathlib import Path
 import sys
 
 import joblib
@@ -12,7 +11,7 @@ from sklearn.cluster import HDBSCAN
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-sys.path.append(Path("../scripts"))
+sys.path.append("../scripts")
 from read_colvar_file import read_colvar
 
 # Command line inputs
