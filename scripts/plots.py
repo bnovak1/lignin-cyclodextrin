@@ -26,7 +26,7 @@ parser.add_argument("--dimension", type=int, help="Dimension of the plot(s)")
 args = parser.parse_args()
 
 # Read data
-colvars = read_colvar(args.colvar, args.lignol)
+colvars = read_colvar(args.colvar)
 
 if args.dimension == 2:
 
@@ -95,7 +95,7 @@ if args.dimension == 2:
     sns.kdeplot(
         data=colvars, x="dtang", y="orient",
         fill=True,
-        thresh=0, levels=150,
+        thresh=0, levels=100,
         cmap=reversed_color_map, cbar=True,
     )
     plt.xlabel("$d_{tang}$")
