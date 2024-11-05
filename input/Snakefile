@@ -61,50 +61,6 @@ rule plumed_CVss:
         expand(rules.plumed_CVs.output, lignol=config["LIGNOLS"]),
 
 
-# Plot 2D and 3D scatter plots of the collective variables.
-rule plots_2D:
-    input:
-        colvar=rules.plumed_CVs.output.colvar,
-        script=Path("../scripts/plots.py"),
-    output:
-        scatter_dnorm_dtang=str(analysis_dir / "dnorm_dtang.png"),
-        kde_dnorm_dtang=str(analysis_dir / "dnorm_dtang_kde.png"),
-        scatter_dnorm_orient=str(analysis_dir / "dnorm_orient.png"),
-        scatter_dtang_orient=str(analysis_dir / "dtang_orient.png"),
-    params:
-        output_dir=str(analysis_dir),
-    shell:
-        "python {input.script} --lignol {wildcards.lignol} --colvar {input.colvar} --outdir {params.output_dir} --dimension 2"
-
-rule plots_2Ds:
-    input:
-        expand(rules.plots_2D.output, lignol=config["LIGNOLS"]),
-
-
-rule plots_3D:
-    input:
-        colvar=rules.plumed_CVs.output.colvar,
-        script=Path("../scripts/plots.py"),
-    output:
-        scatter_html=str(analysis_dir / "high_density_scatter.html"),
-        scatter_png=str(analysis_dir / "high_density_scatter.png"),
-    params:
-        output_dir=str(analysis_dir),
-    shell:
-        """
-        python {input.script} \
-            --lignol {wildcards.lignol} \
-            --colvar {input.colvar} \
-            --outdir {params.output_dir} \
-            --dimension 3
-        convert {output.scatter_png} -trim {output.scatter_png}
-        """
-
-rule plots_3Ds:
-    input:
-        expand(rules.plots_3D.output, lignol=config["LIGNOLS"]),
-
-
 # HDBSCAN clustering.
 rule clustering:
     input:
