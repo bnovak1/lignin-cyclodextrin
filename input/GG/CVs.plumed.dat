@@ -13,11 +13,33 @@ dcl: DISTANCE ATOMS=bcd,lignin
 dclc: DISTANCE ATOMS=bcd,lignin COMPONENTS
 dcs: DISTANCE ATOMS=bcd,bcdsecondary
 dcsc: DISTANCE ATOMS=bcd,bcdsecondary COMPONENTS
+dch: DISTANCE ATOMS=bcd,ligninhead
+dchc: DISTANCE ATOMS=bcd,ligninhead COMPONENTS
+dct: DISTANCE ATOMS=bcd,lignintail
+dctc: DISTANCE ATOMS=bcd,lignintail COMPONENTS
 
 # Define custom variable for normal distance, dnorm
 CUSTOM ...
     LABEL=dnorm
     ARG=dclc.x,dclc.y,dclc.z,dcsc.x,dcsc.y,dcsc.z,dcs
+    VAR=lx,ly,lz,cx,cy,cz,cm
+    FUNC=(lx*cx+ly*cy+lz*cz)/cm
+    PERIODIC=NO
+... CUSTOM
+
+# Define custom variable for normal distance to the lignin head, dhead
+CUSTOM ...
+    LABEL=dhead
+    ARG=dchc.x,dchc.y,dchc.z,dcsc.x,dcsc.y,dcsc.z,dcs
+    VAR=lx,ly,lz,cx,cy,cz,cm
+    FUNC=(lx*cx+ly*cy+lz*cz)/cm
+    PERIODIC=NO
+... CUSTOM
+
+# Define custom variable for normal distance to the lignin tail, dtail
+CUSTOM ...
+    LABEL=dtail
+    ARG=dctc.x,dctc.y,dctc.z,dcsc.x,dcsc.y,dcsc.z,dcs
     VAR=lx,ly,lz,cx,cy,cz,cm
     FUNC=(lx*cx+ly*cy+lz*cz)/cm
     PERIODIC=NO
@@ -46,4 +68,4 @@ CUSTOM ...
 ... CUSTOM
 
 # Print the calculated variables to a file
-PRINT ARG=dnorm,dtang,orient FILE=../analysis/0.0M_NaCl/GG/one_BCD/colvar.dat
+PRINT ARG=dnorm,dtang,orient,dhead,dtail FILE=../analysis/GG/colvar.dat
