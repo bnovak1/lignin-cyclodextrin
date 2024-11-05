@@ -4,8 +4,10 @@
         5
     ],
     "center:sec": [
-        2,
         3
+    ],
+    "tail:sec": [
+        2
     ],
     "tail:pri": [
         1
