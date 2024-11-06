@@ -146,19 +146,32 @@ def main(parsed_args):
     fig.update_layout(plot_bgcolor="rgba(0,0,0,0)")
 
     # Save the plot in HTML and JSON formats
-    fig.write_html(Path(parsed_args.dir, "clusters.html"))
-    with open(Path(parsed_args.dir, "clusters.json"), "w", encoding="utf-8") as f:
+    if args.file_label:
+        fig.write_html(Path(parsed_args.dir, f"clusters_{args.file_label}.html"))
+        json_file = Path(parsed_args.dir, f"clusters_{args.file_label}.json")
+    else:
+        fig.write_html(Path(parsed_args.dir, "clusters.html"))
+        json_file = Path(parsed_args.dir, "clusters.json")
+    
+    with open(json_file, "w", encoding="utf-8") as f:
         json.dump(fig.to_plotly_json(), f, cls=plotly.utils.PlotlyJSONEncoder)
 
+    # Save the plot in PNG format
     fig.update_layout(showlegend=False)
-    pio.write_image(fig, Path(parsed_args.dir, "clusters.png"), scale=4)
+    if args.file_label:
+        fig.write_image(Path(parsed_args.dir, f"clusters_{args.file_label}.png"), scale=4)
+    else:
+        pio.write_image(fig, Path(parsed_args.dir, "clusters.png"), scale=4)
 
     # Save the cluster labels
-    np.savetxt(Path(parsed_args.dir, "cluster_labels.dat"), clustering.labels_, fmt="%d")
-
-    # Save the number of clusters
-    nclusters = colvars["label"].nunique()
-    np.savetxt(Path(parsed_args.dir, "nclusters.dat"), [nclusters], fmt="%d")
+    if args.file_label:
+        np.savetxt(
+            Path(parsed_args.dir, f"cluster_labels_{args.file_label}.dat"),
+            clustering.labels_,
+            fmt="%d",
+        )
+    else:
+        np.savetxt(Path(parsed_args.dir, "cluster_labels.dat"), clustering.labels_, fmt="%d")
 
 
 if __name__ == "__main__":
@@ -170,6 +183,7 @@ if __name__ == "__main__":
         "--model", type=str, help="Name of the joblib file with the best clustering model"
     )
     parser.add_argument("--dir", type=str, help="Input and output directory name")
+    parser.add_argument("--file_label", type=str, default=None, help="Label for output files")
     args = parser.parse_args()
 
     main(args)
