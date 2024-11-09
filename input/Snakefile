@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 import numpy as np
 
@@ -76,9 +77,12 @@ rule clustering:
         "python {input.script} --colvar {input.colvar} --min_samples {wildcards.min_samples} --nclusters_file {output.nclust}"
 
 rule clusterings:
-    input:
+    input:        
         [
-            f"../analysis/{lignol}/clustering/HDBSCAN_model/nclusters_{min_samples}.dat"
+            rules.clustering.output.nclust.format(
+                lignol=lignol,
+                min_samples=min_samples
+            )
             for lignol in config["LIGNOLS"]
             for min_samples in range(
                 config["MIN_SAMPLES_RANGE"][lignol][0],
@@ -264,7 +268,6 @@ rule cluster_config_images:
         vmd -e {input.script}
         """
 
-# HOW TO LOOP OVER ONLY CENTER BOUND CLUSTER LABELS?
 rule cluster_config_imagess:
     input:
         lambda wildcards: [
@@ -313,6 +316,51 @@ rule cluster_configs_to_cluster_plotss:
             rules.cluster_configs_to_cluster_plots.output,
             lignol=config["LIGNOLS"],
         ),
+
+# KDE plots of normal distances for each cluster group
+rule cluster_distances_KDE:
+    input:
+        colvar=rules.plumed_CVs.output.colvar,
+        cluster_labels=rules.plot_clusters.output.cluster_labels,
+        center_bound_clusters="{lignol}/center_bound_cluster_labels.json",
+        script="../scripts/cluster_distances_KDE.py",
+    output:
+        kde_plot = str(analysis_dir / "clustering/cluster_distances_KDE_{cluster_group}.png"),
+        kde_plot_writing = str(
+            writing_dir / "fig-kde_{lignol}-{cluster_group}/cluster_distances_KDE_{cluster_group}.png"
+        ),
+    params:
+        drctry=str(analysis_dir / "clustering"),
+    shell:
+        """
+        python {input.script} \
+            --lignol {wildcards.lignol} \
+            --colvar {input.colvar} \
+            --clust_labels {input.cluster_labels} \
+            --center_bound_clusters {input.center_bound_clusters} \
+            --cluster_group {wildcards.cluster_group} \
+            --outdir {params.drctry}
+        cp {output.kde_plot} {output.kde_plot_writing}
+        """
+
+rule cluster_distances_KDEs:
+    input:
+        [
+            rules.cluster_distances_KDE.output.kde_plot.format(
+                lignol=lignol,
+                cluster_group=cluster_group
+            )
+            for lignol in config["LIGNOLS"]
+            for cluster_group in config["CENTER_BOUND_CLUSTER_LABELS"][lignol].keys()
+        ] + 
+        [
+            rules.cluster_distances_KDE.output.kde_plot_writing.format(
+                lignol=lignol,
+                cluster_group=cluster_group
+            )
+            for lignol in config["LIGNOLS"]
+            for cluster_group in config["CENTER_BOUND_CLUSTER_LABELS"][lignol].keys()
+        ],
 
 
 # Fractions of configurations belonging to each cluster.
