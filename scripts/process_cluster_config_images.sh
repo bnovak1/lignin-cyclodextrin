@@ -14,7 +14,7 @@
 lignol=$1
 
 # Base directory
-BASE_DIR=../analysis/${lignol}/one_BCD/clustering
+BASE_DIR=../analysis/${lignol}/clustering
 
 # Image number sequence
 if [ $lignol == "GG" ]; then
