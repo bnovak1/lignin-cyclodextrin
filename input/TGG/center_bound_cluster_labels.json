@@ -1,15 +1,15 @@
 {
-    "head:sec": [
+    "head-sec": [
         4,
         5
     ],
-    "center:sec": [
+    "center-sec": [
         3
     ],
-    "tail:sec": [
+    "tail-sec": [
         2
     ],
-    "tail:pri": [
+    "tail-pri": [
         1
     ]
 }
