@@ -27,16 +27,16 @@ tags:
 
 # Introduction {#sec-introduction}
 
-In our previous study[@dean_complexation_2022], we investigated the interaction between $\beta$-cyclodextrin[@noauthor_cyclodextrin_nodate] and [lignin](https://en.wikipedia.org/wiki/Lignin) dimer derivatives through experimental methods, [molecular dynamics simulations](https://www.gromacs.org/), and [docking](https://vina.scripps.edu/). The relevant chemical structures are depicted in @fig-dimers_BCD_labelled. An introduction to the project can be found [here](https://brian-novak.vercel.app/career/website/lignin/lignin-dimer-derivatives-interacting-with-v-cyclodextrin/), and a summary of the publication is available [here](https://brian-novak.vercel.app/career/website/lignin/complexation-of-lignin-dimers-with-v-cyclodextrin-and-binding-stability-analysis-by-esi-ms-isothermal-titration-calorimetry-and-molecular-dynamics-simulations/). During the molecular dynamics simulations, we observed multiple types of dimer-cyclodextrin bound states. We estimated the proportions of these states in unbiased simulations using the following procedure:
+In our previous study[@dean_complexation_2022], we investigated the interaction between $\beta$-cyclodextrin and lignin dimer derivatives through experimental methods, molecular dynamics simulations using GROMACS 2018.3[@kutzner_more_2019; @noauthor_welcome_nodate], and docking with AutoDock Vina[@eberhardt_autodock_2021; @trott_autodock_2010-1; @noauthor_autodock_nodate]. The relevant chemical structures are depicted in @fig-dimers_BCD_labelled. An introduction to the project[@noauthor_lignin_nodate] and a summary of the publication[@noauthor_complexation_nodate] are available. During the molecular dynamics simulations, we observed multiple types of dimer-cyclodextrin bound states. We estimated the proportions of these states in unbiased simulations using the following procedure:
 
 1. Computed a large number of collective variables including angle between lignin dimer and $\beta$-cyclodextrin principal axes, distances between atoms in the $\beta$-cyclodextrin molecule to atoms in the lignin dimer molecule, and lignin dihedral angles
-2. Applied [principal component analysis](https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html) (PCA) to reduce the number of dimensions to two
-3. Clustered the trajectory configurations using [DBSCAN](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.DBSCAN.html) clustering to separate the different states into distinct clusters
+2. Applied principal component analysis (PCA)[@noauthor_pca_nodate] to reduce the number of dimensions to two
+3. Clustered the trajectory configurations using Density-Based Spatial Clustering of Applications with Noise (DBSCAN)[@noauthor_dbscan_nodate; @ester_density-based_1996] to separate the different states into distinct clusters
 4. Counted the number of points in each cluster and computed proportions of each one
 
-The procedure details can be found in the [Supporting Information](https://pubs.acs.org/doi/suppl/10.1021/acs.jpcb.1c09190/suppl_file/jp1c09190_si_001.pdf) on pages 9-18. The primary challenge was encountered in step 3, where the states were not distinctly separated. Trial and error was necessary to select DBSCAN parameters that successfully differentiated the clusters.
+The procedure details can be found in the [Supporting Information](https://pubs.acs.org/doi/suppl/10.1021/acs.jpcb.1c09190/suppl_file/jp1c09190_si_001.pdf) for the previous study[@dean_complexation_2022] on pages 9-18. The primary challenge was encountered in step 3, where the states were not distinctly separated. Trial and error was necessary to select DBSCAN parameters that successfully differentiated the clusters.
 
-![Structures of lignin dimer derivatives (1-3), and $\beta$-cyclodextrin. The lower right structures are 3D top and side views of $\beta$-cyclodextrin. The 3D representations show $\beta$-cyclodextrin from top and side views, with hydrogen atoms in white, carbon atoms in cyan, and oxygen atoms in red. The face of $\beta$-cyclodextrin with two hydroxyl (-OH) groups per unit (seen in the top view) is referred to as the secondary face, while the other face is referred to as the primary face.  [rdkit](https://www.rdkit.org/) 2023.03.3 was used for the 2D representations and [VMD](https://www.ks.uiuc.edu/Research/vmd/)[@humphrey_vmd:_1996] 1.9.3 was used to create the 3D representations.](000_Attachments/fig-dimers_BCD_labelled/dimers_BCD_labelled.png){#fig-dimers_BCD_labelled}
+![Structures of lignin dimer derivatives (1-3), and $\beta$-cyclodextrin. The lower right structures are 3D top and side views of $\beta$-cyclodextrin. The 3D representations show $\beta$-cyclodextrin from top and side views, with hydrogen atoms in white, carbon atoms in cyan, and oxygen atoms in red. The face of $\beta$-cyclodextrin with two hydroxyl (-OH) groups per unit (seen in the top view) is referred to as the secondary face, while the other face is referred to as the primary face. RDKit[@noauthor_rdkit_nodate] 2023.03.3 was used for the 2D representations and VMD[@humphrey_vmd:_1996] 1.9.3[@noauthor_vmd_nodate] was used to create the 3D representations.](000_Attachments/fig-dimers_BCD_labelled/dimers_BCD_labelled.png){#fig-dimers_BCD_labelled}
 
 ```{python}
 """
@@ -81,13 +81,13 @@ script_file = Path(smi_dir, "structures_labelling.sh")
 subprocess.run(f"bash {script_file} {smi_dir}", shell=True);
 ```
 
-In this study, three carefully selected collective variables were utilized to distinguish the observed states, eliminating the need for dimensionality reduction. Additionally, [HDBSCAN](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.HDBSCAN.html) was used instead of DBSCAN for clustering. Finding the point where the number of clusters as a function of the `min_samples` = `min_cluster_size` parameter for HDBSCAN started to never increase provided a way to identify a "natural" number of clusters (see [Determination of `min_samples`](#sec-min_samples) for details on the algorithm).  The analysis uncovered center-bound configuration types that were not evident through mere visual inspection of the trajectories. However, these were subsets of the visually observed types, and only one cluster was dominant for each group of clusters corresponding to the visually observed types. Therefore, `min_samples` was increased to get similar clusters as those identified in the previous study[@dean_complexation_2022].
+In this study, three carefully selected collective variables were utilized to distinguish the observed states, eliminating the need for dimensionality reduction. Additionally, Hierarchical Density-Based Spatial Clustering of Applications with Noise (HDBSCAN)[@campello_density-based_nodate; @campello_hierarchical_2015; @noauthor_hdbscan_nodate] was used instead of DBSCAN for clustering. Finding the point where the number of clusters as a function of the `min_samples` = `min_cluster_size` parameter for HDBSCAN started to never increase provided a way to identify a "natural" number of clusters (see [Determination of `min_samples`](#sec-min_samples) for details on the algorithm). Additionally, this eliminated the trial and error that was previously required to separate the clusters using PCA and DBSCAN.[@dean_complexation_2022] The analysis uncovered configuration types with the lignin dimer bound to the cyclodextrin center that were not evident through mere visual inspection of the trajectories. However, these were subsets of the visually observed types, and only one cluster was dominant for each group of clusters corresponding to the visually observed types.
 
 # Methods {#sec-methods}
 
 ## Collective variables {#sec-collective-variables}
 
-Three collective variables were defined based on important configurations seen in unbiased simulations. The collective variables were computed using PLUMED[@tribello_plumed_2014] 2.6.6.
+Three collective variables were defined based on important configurations seen in unbiased simulations. The collective variables were computed using PLUMED[@tribello_plumed_2014] 2.6.6[@noauthor_plumed_nodate].
 
 ### Normal distance {#sec-dnorm}
 
@@ -97,7 +97,7 @@ $$
 d_n = \frac{\overrightarrow{CL} \cdot \overrightarrow{CS}}{\left|\overrightarrow{CS}\right|}
 $$ {#eq-dnorm}
 
-$\overrightarrow{CL}$ is the vector pointing from the cyclodextrin center of mass to the lignin center of mass and $\overrightarrow{CS}$ is the vector pointing from the cyclodextrin center of mass to the center of the hydroxyl oxygen atoms in the cyclodextrin secondary face.
+$\overrightarrow{CL}$ is the vector pointing from the cyclodextrin center of mass (COM) to the lignin COM and $\overrightarrow{CS}$ is the vector pointing from the cyclodextrin COM to the center of the hydroxyl oxygen atoms in the cyclodextrin secondary face.
 
 ```{python}
 #| label: fig-CS_vector
@@ -120,13 +120,13 @@ u = mda.Universe(bcd_pdb)
 # Select the atoms in the cyclodextrin
 cyclodextrin = u.select_atoms("resname BCDC")
 
-# Calculate the center of mass of the cyclodextrin
+# Calculate the COM of the cyclodextrin
 com_cyclodextrin = cyclodextrin.center_of_mass()
 
 # Select the oxygen atoms in the secondary face (O2 and O3)
 oxygen_atoms = cyclodextrin.select_atoms("name O2 O3")
 
-# Calculate the center of mass of the oxygen atoms
+# Calculate the COM of the oxygen atoms
 com_oxygen = oxygen_atoms.center_of_mass()
 
 # Calculate the CS vector
@@ -199,7 +199,7 @@ u_lignin = mda.Universe(lignin_pdb)
 # Select the lignin molecule
 lignin = u_lignin.select_atoms("all")
 
-# Calculate the center of mass of the lignin molecule
+# Calculate the COM of the lignin molecule
 com_lignin = lignin.center_of_mass()
 
 # Load the PDB file for cyclodextrin
@@ -208,7 +208,7 @@ u_cyclodextrin = mda.Universe(bcd_pdb)
 # Select the cyclodextrin molecule
 cyclodextrin = u_cyclodextrin.select_atoms("all")
 
-# Calculate the center of mass of the cyclodextrin molecule
+# Calculate the COM of the cyclodextrin molecule
 com_cyclodextrin = cyclodextrin.center_of_mass()
 
 # Calculate the CL vector
@@ -417,7 +417,7 @@ view.show()
 
 ### Tangential distance {#sec-dtang}
 
-The second collective variable was the distance from the cyclodextrin center of mass to the lignin center of mass in the direction perpendicular to $\overrightarrow{CS}$. It is the length of the second leg of a right triangle with hypotenuse $|\overrightarrow{CL}|$ and one leg $d_n$.
+The second collective variable was the distance from the cyclodextrin COM to the lignin dimer COM in the direction perpendicular to $\overrightarrow{CS}$. It is the length of the second leg of a right triangle with hypotenuse $|\overrightarrow{CL}|$ and one leg $d_n$.
 
 $$
 d_t = \sqrt{\left|\overrightarrow{CL}\right|^2 - d_n^2}
@@ -425,7 +425,7 @@ $$ {#eq-dtang}
 
 ```{python}
 #| label: fig-dtang
-#| fig-cap: "The distance from the cyclodextrin center of mass to the lignin center of mass in the direction perpendicular to $\\overrightarrow{CS}$, $d_t$, represented as a green cylinder. In the molecular structures, gray atoms are carbon, red atoms are oxygen, cyclodextrin is translucent, and hydrogen atoms are not shown."
+#| fig-cap: "The distance from the cyclodextrin COM to the lignin dimer COM in the direction perpendicular to $\\overrightarrow{CS}$, $d_t$, represented as a green cylinder. In the molecular structures, gray atoms are carbon, red atoms are oxygen, cyclodextrin is translucent, and hydrogen atoms are not shown."
 
 """
 The files related to this figure are in ./000_Attachments/fig-dtang.
@@ -444,11 +444,11 @@ lignin_pdb = "000_Attachments/fig-dtang/GG.pdb"
 u_cyclodextrin = mda.Universe(cyclodextrin_pdb)
 u_lignin = mda.Universe(lignin_pdb)
 
-# Calculate the center of mass for cyclodextrin and lignin
+# Calculate the COM for cyclodextrin and lignin dimer
 com_cyclodextrin = u_cyclodextrin.atoms.center_of_mass()
 com_lignin = u_lignin.atoms.center_of_mass()
 
-# Calculate the center of mass for oxygen atoms in cyclodextrin secondary face
+# Calculate the COM for oxygen atoms in cyclodextrin secondary face
 oxygen_atoms = u_cyclodextrin.select_atoms("name O2 O3")
 com_oxygen = oxygen_atoms.center_of_mass()
 
@@ -642,7 +642,7 @@ view.show()
 
 ```{python}
 #| label: fig-theta
-#| fig-cap: "The angle $\\theta$ between $\\overrightarrow{HT}$ and $\\overrightarrow{CS}$ represented as a green arrow. The origin of $\\overrightarrow{HT}$ is shifted to the cyclodextrin center of mass. In the molecular structures, gray atoms are carbon, red atoms are oxygen, cyclodextrin is translucent, and hydrogen atoms are not shown."
+#| fig-cap: "The angle $\\theta$ between $\\overrightarrow{HT}$ and $\\overrightarrow{CS}$ represented as a green arrow. The origin of $\\overrightarrow{HT}$ is shifted to the cyclodextrin COM. In the molecular structures, gray atoms are carbon, red atoms are oxygen, cyclodextrin is translucent, and hydrogen atoms are not shown."
 
 """
 The files related to this figure are in ./000_Attachments/fig-theta.
@@ -671,7 +671,7 @@ lignin_head = lignin.select_atoms("resid 1 and name C1 C2 C3 C4 C5 C6").center_o
 lignin_tail = lignin.select_atoms("resid 2 and name C1 C2 C3 C4 C5 C6").center_of_mass()
 HT_vector = lignin_head - lignin_tail
 
-# Shift HT vector to originate at cyclodextrin center of mass
+# Shift HT vector to originate at cyclodextrin COM
 HT_vector_shifted = HT_vector + cyclodextrin_com
 
 # Calculate the cosine of the angle θ
@@ -814,8 +814,8 @@ view.show()
 
 The best value of `min_samples` = `min_cluster_size` used in the HDBSCAN algorithm was determined using the following algorithm:
 
-1. Find the spike positions where the number of clusters as a function of `min_samples` changes, stays at the new value for 3 or less points, then changes back.
-2. If the spike with the largest value of `min_samples` is upward, then the best value of `min_samples` is the value immediately following the value corresponding to the spike. If the spike with the largest value of `min_samples` is downward, the best value of `min_samples` is found at the index corresponding to the next occurrence of the number of clusters equal to the number of clusters at the spike.
+1. Find the last value of `min_samples`, $S$, where the number of clusters corresponding to $S+1$ is larger than the number of clusters correponding to $S$. The number of clusters corresponding to $S$ is $C$.
+2. Choose the smallest value of `min_samples` > $S$ where the number of clusters is equal to $C$.
 
 # Results {#sec-results}
 
@@ -823,7 +823,7 @@ The best value of `min_samples` = `min_cluster_size` used in the HDBSCAN algorit
 
 The numbers of clusters as a function of `min_samples` are shown in @fig-nclusters_1, @fig-nclusters_2, and @fig-nclusters_3. The best values for `min_samples` and the corresponding numbers of clusters were determined using the algorithm described in [Determination of `min_samples`](#sec-min_samples).
 
-![Number of clusters for dimer 1 as a function of `min_samples` for the HDBSCAN algorithm. The best value for `min_samples` and the corresponding number of clusters is circled in red and indicated in the legend.](000_Attachments/fig-nclusters_GG/min_samples.png){#fig-nclusters_1}
+![Number of clusters for dimer 1 as a function of `min_samples` for the HDBSCAN algorithm. The best value for `min_samples` and the corresponding number of clusters is circled in red and indicated in the legend.](000_Attachments/fig-nclusters_GG/min_samples.png){#fig-nclusters_1 width=75%}
 
 ```{python}
 """
@@ -848,8 +848,6 @@ os.chdir(input_dir)
 subprocess.run(
     [
         "snakemake",
-        "-s",
-        "plumed.smk",
         "../writing/HDBSCAN_clustering_for_identification_of_states_with_lignin_dimers_bound_to_cyclodextrin_from_molecular_dynamics_simulations/000_Attachments/fig-nclusters_GG/min_samples.png",
         "-j",
     ],
@@ -861,7 +859,7 @@ subprocess.run(
 os.chdir(current_dir)
 ```
 
-![Number of clusters for dimer 2 as a function of `min_samples` for the HDBSCAN algorithm. The best value for `min_samples` and the corresponding number of clusters is circled in red and indicated in the legend.](000_Attachments/fig-nclusters_TGG/min_samples.png){#fig-nclusters_2}
+![Number of clusters for dimer 2 as a function of `min_samples` for the HDBSCAN algorithm. The best value for `min_samples` and the corresponding number of clusters is circled in red and indicated in the legend.](000_Attachments/fig-nclusters_TGG/min_samples.png){#fig-nclusters_2 width=75%}
 
 ```{python}
 """
@@ -886,8 +884,6 @@ os.chdir(input_dir)
 subprocess.run(
     [
         "snakemake",
-        "-s",
-        "plumed.smk",
         "../writing/HDBSCAN_clustering_for_identification_of_states_with_lignin_dimers_bound_to_cyclodextrin_from_molecular_dynamics_simulations/000_Attachments/fig-nclusters_TGG/min_samples.png",
         "-j",
     ],
@@ -899,7 +895,7 @@ subprocess.run(
 os.chdir(current_dir)
 ```
 
-![Number of clusters for dimer 3 as a function of `min_samples` for the HDBSCAN algorithm. The best value for `min_samples` and the corresponding number of clusters is circled in red and indicated in the legend.](000_Attachments/fig-nclusters_GG_BB/min_samples.png){#fig-nclusters_3}
+![Number of clusters for dimer 3 as a function of `min_samples` for the HDBSCAN algorithm. The best value for `min_samples` and the corresponding number of clusters is circled in red and indicated in the legend.](000_Attachments/fig-nclusters_GG_BB/min_samples.png){#fig-nclusters_3 width=75%}
 
 ```{python}
 """
@@ -924,8 +920,6 @@ os.chdir(input_dir)
 subprocess.run(
     [
         "snakemake",
-        "-s",
-        "plumed.smk",
         "../writing/HDBSCAN_clustering_for_identification_of_states_with_lignin_dimers_bound_to_cyclodextrin_from_molecular_dynamics_simulations/000_Attachments/fig-nclusters_GG_BB/min_samples.png",
         "-j",
     ],
@@ -957,13 +951,12 @@ current_dir = Path().resolve()
 
 # Change directory
 input_dir = Path("../../input").resolve()
+os.chdir(input_dir)
 
 # Run the snakemake command
 subprocess.run(
     [
         "snakemake",
-        "-s",
-        "plumed.smk",
         "../writing/HDBSCAN_clustering_for_identification_of_states_with_lignin_dimers_bound_to_cyclodextrin_from_molecular_dynamics_simulations/000_Attachments/fig-clusters-GG/clusters_configs.png",
         "-j",
     ],
@@ -989,7 +982,7 @@ fig = pio.from_json(json.dumps(fig_data))
 fig.show()
 ```
 
-![Interactive and static 3D scatter plots of the collective variables showing the HDBSCAN clusters for dimer 1. Representative configurations for each cluster are shown around the static scatter plot except for the cyan and brown clusters which include configurations where the lignin dimer interacts (weakly) with the outside of the cyclodextrin ring or where there is no direct contact between the lignin dimer and cyclodextrin at all. The arrows in the configurations point in the directions of $\overrightarrow{CS}$ and $\overrightarrow{HT}$. HDBSCAN outlier points are not plotted.](000_Attachments/fig-clusters_GG/clusters_configs.png){#fig-clusters-1}
+![Interactive and static 3D scatter plots of the collective variables showing the HDBSCAN clusters for dimer 1. Representative configurations for each cluster are shown around the static scatter plot except for the cyan and brown clusters which include configurations where the lignin dimer interacts (weakly) with the outside of the cyclodextrin ring or where there is no direct contact between the lignin dimer and cyclodextrin at all. The cyclodextrin atoms and bonds are gray except for the primary face oxygen atoms are green and the secondary face oxygen atoms are purple. Atom colors in the lignin dimer molecules: H=white, C=cyan, O=red. The arrows in the configurations point in the directions of $\overrightarrow{CS}$ and $\overrightarrow{HT}$. HDBSCAN outlier points are not plotted.](000_Attachments/fig-clusters_GG/clusters_configs.png){#fig-clusters-1}
 
 ```{python}
 """
@@ -1007,13 +1000,12 @@ current_dir = Path().resolve()
 
 # Change directory
 input_dir = Path("../../input").resolve()
+os.chdir(input_dir)
 
 # Run the snakemake command
 subprocess.run(
     [
         "snakemake",
-        "-s",
-        "plumed.smk",
         "../writing/HDBSCAN_clustering_for_identification_of_states_with_lignin_dimers_bound_to_cyclodextrin_from_molecular_dynamics_simulations/000_Attachments/fig-clusters_TGG/clusters_configs.png",
         "-j",
     ],
@@ -1039,7 +1031,7 @@ fig = pio.from_json(json.dumps(fig_data))
 fig.show()
 ```
 
-![Interactive and static 3D scatter plots of the collective variables showing the HDBSCAN clusters for dimer 2. Representative configurations for each cluster are shown around the static scatter plot except for the orange cluster which includes configurations where the lignin dimer interacts (weakly) with the outside of the cyclodextrin ring or where there is no direct contact between the lignin dimer and cyclodextrin at all. The arrows in the configurations point in the directions of $\overrightarrow{CS}$ and $\overrightarrow{HT}$. HDBSCAN outlier points are not plotted.](000_Attachments/fig-clusters_TGG/clusters_configs.png){#fig-clusters-2}
+![Interactive and static 3D scatter plots of the collective variables showing the HDBSCAN clusters for dimer 2. Representative configurations for each cluster are shown around the static scatter plot except for the orange cluster which includes configurations where the lignin dimer interacts (weakly) with the outside of the cyclodextrin ring or where there is no direct contact between the lignin dimer and cyclodextrin at all. The cyclodextrin atoms and bonds are gray except for the primary face oxygen atoms are green and the secondary face oxygen atoms are purple. Atom colors in the lignin dimer molecules: H=white, C=cyan, O=red. The arrows in the configurations point in the directions of $\overrightarrow{CS}$ and $\overrightarrow{HT}$. HDBSCAN outlier points are not plotted.](000_Attachments/fig-clusters_TGG/clusters_configs.png){#fig-clusters-2}
 
 ```{python}
 """
@@ -1057,13 +1049,12 @@ current_dir = Path().resolve()
 
 # Change directory
 input_dir = Path("../../input").resolve()
+os.chdir(input_dir)
 
 # Run the snakemake command
 subprocess.run(
     [
         "snakemake",
-        "-s",
-        "plumed.smk",
         "../writing/HDBSCAN_clustering_for_identification_of_states_with_lignin_dimers_bound_to_cyclodextrin_from_molecular_dynamics_simulations/000_Attachments/fig-clusters-GG_BB/clusters_configs.png",
         "-j",
     ],
@@ -1089,15 +1080,348 @@ fig = pio.from_json(json.dumps(fig_data))
 fig.show()
 ```
 
-![Interactive and static 3D scatter plots of the collective variables showing the HDBSCAN clusters for dimer 3. Representative configurations for each cluster are shown around the static scatter plot except for the purple cluster which includes configurations where the lignin dimer interacts (weakly) with the outside of the cyclodextrin ring or where there is no direct contact between the lignin dimer and cyclodextrin at all. The arrows in the configurations point in the directions of $\overrightarrow{CS}$ and $\overrightarrow{HT}$. HDBSCAN outlier points are not plotted.](000_Attachments/fig-clusters_GG_BB/clusters_configs.png){#fig-clusters-3}
+![Interactive and static 3D scatter plots of the collective variables showing the HDBSCAN clusters for dimer 3. Representative configurations for each cluster are shown around the static scatter plot except for the purple cluster which includes configurations where the lignin dimer interacts (weakly) with the outside of the cyclodextrin ring or where there is no direct contact between the lignin dimer and cyclodextrin at all. The cyclodextrin atoms and bonds are gray except for the primary face oxygen atoms are green and the secondary face oxygen atoms are purple. Atom colors in the lignin dimer molecules: H=white, C=cyan, O=red. The arrows in the configurations point in the directions of $\overrightarrow{CS}$ and $\overrightarrow{HT}$. HDBSCAN outlier points are not plotted.](000_Attachments/fig-clusters_GG_BB/clusters_configs.png){#fig-clusters-3}
 
-## Proportion of configurations belonging to each cluster: Original `min_samples` values {#sec-fractions-orig}
+## Definition of cluster groups {#sec-cluster-groups}
 
-The proportions of the configurations with a lignin dimer bound to the center of the cyclodextrin belonging to each cluster for each dimer were calculated; configurations where the lignin dimer interacts (weakly) with the outside of the cyclodextrin ring or where there is no direct contact between the lignin dimer and cyclodextrin at all were not considered in the total number of configurations. Clusters with similar binding configurations were grouped together and proportions were computed for those groups as well. The proportions are shown in @tbl-fractions-1, @tbl-fractions-2, and @tbl-fractions-3.
+For clusters containing configurations with a lignin dimer bound to the center of the cyclodextrin, clusters with similar binding configurations were grouped together. Those groups correspond to configurations that were visually observed in the trajectories. The cluster groups are described below in terms of the normal distances from cylodextrin COM to the lignin dimer COM, head, and tail. This is probably more intuitive than using a combination of $d_norm$ and $\cos \theta$. The cyclodextrin center COM to lignin dimer COM normal distance is $d_{norm}$ and the cyclodextrin COM to lignin dimer head and tail normal distances are defined analagous to $d_{norm}$ in @eq-dnorm.
+
+### Dimer 1 cluster groups {#sec-cluster-groups-1}
+
+For dimer 1, the cluster groups were named head-sec, center-sec, and tail-sec. The head-sec group consists of clusters where the lignin dimer head distance is usually less than the lignin dimer tail and COM distances and the COM of the lignin dimer is closer to the cyclodextrin secondary face than the cyclodextrin primary face (positive distance). The center-sec group consists of clusters where the lignin dimer COM, head, and tail are about the same distance from the cyclodextrin COM and the COM of the lignin dimer is closer to the cyclodextrin secondary face than the cyclodextrin primary face (positive distance). The tail-sec group consists of clusters where the lignin dimer tail distance is usually less than the lignin dimer head and COM distances and the COM of the lignin dimer is closer to the cyclodextrin secondary face than the cyclodextrin primary face (positive distance). Kernel density estimate (KDE) plots of the cyclodextrin COM to lignin dimer normal distances (COM, head, tail) for each cluster group are shown in @fig-kde-1-head-sec, @fig-kde-1-center-sec, and @fig-kde-1-tail-sec.
+
+```{python}
+"""
+The files related to this figure are in ./000_Attachments/fig-kde_GG-head-sec.
+This figure was generated using snakemake in the input directory.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+import subprocess
+import os
+from pathlib import Path
+
+# Current directory
+current_dir = Path().resolve()
+
+# Change directory
+input_dir = Path("../../input").resolve()
+os.chdir(input_dir)
+
+# Run the snakemake command
+subprocess.run(
+    [
+        "snakemake",
+        "../writing/HDBSCAN_clustering_for_identification_of_states_with_lignin_dimers_bound_to_cyclodextrin_from_molecular_dynamics_simulations/000_Attachments/fig-kde_GG-head-sec/cluster_distances_KDE_head-sec.png",
+        "-j",
+    ],
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+)
+
+# Change directory back
+os.chdir(current_dir)
+```
+
+![KDE plots of the cyclodextrin to lignin dimer normal distances for dimer 1 for the head-sec cluster group. In the legend, COM refers to the cyclodextrin COM to lignin dimer COM distance, head refers to the cyclodextrin COM to lignin dimer head distance, and tail refers to the cyclodextrin COM to lignin dimer tail distance.](000_Attachments/fig-kde_GG-head-sec/cluster_distances_KDE_head-sec.png){#fig-kde-1-head-sec width=75%}
+
+```{python}
+"""
+The files related to this figure are in ./000_Attachments/fig-kde_GG-center-sec.
+This figure was generated using snakemake in the input directory.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+import subprocess
+import os
+from pathlib import Path
+
+# Current directory
+current_dir = Path().resolve()
+
+# Change directory
+input_dir = Path("../../input").resolve()
+os.chdir(input_dir)
+
+# Run the snakemake command
+subprocess.run(
+    [
+        "snakemake",
+        "../writing/HDBSCAN_clustering_for_identification_of_states_with_lignin_dimers_bound_to_cyclodextrin_from_molecular_dynamics_simulations/000_Attachments/fig-kde_GG-center-sec/cluster_distances_KDE_center-sec.png",
+        "-j",
+    ],
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+)
+
+# Change directory back
+os.chdir(current_dir)
+```
+
+![KDE plots of the cyclodextrin to lignin dimer normal distances for dimer 1 for the center-sec cluster group. In the legend, COM refers to the cyclodextrin COM to lignin dimer COM distance, head refers to the cyclodextrin COM to lignin dimer head distance, and tail refers to the cyclodextrin COM to lignin dimer tail distance.](000_Attachments/fig-kde_GG-center-sec/cluster_distances_KDE_center-sec.png){#fig-kde-1-center-sec width=75%}
+
+```{python}
+"""
+The files related to this figure are in ./000_Attachments/fig-kde_GG-tail-sec.
+This figure was generated using snakemake in the input directory.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+import subprocess
+import os
+from pathlib import Path
+
+# Current directory
+current_dir = Path().resolve()
+
+# Change directory
+input_dir = Path("../../input").resolve()
+os.chdir(input_dir)
+
+# Run the snakemake command
+subprocess.run(
+    [
+        "snakemake",
+        "../writing/HDBSCAN_clustering_for_identification_of_states_with_lignin_dimers_bound_to_cyclodextrin_from_molecular_dynamics_simulations/000_Attachments/fig-kde_GG-tail-sec/cluster_distances_KDE_tail-sec.png",
+        "-j",
+    ],
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+)
+
+# Change directory back
+os.chdir(current_dir)
+```
+
+![KDE plots of the cyclodextrin to lignin dimer normal distances for dimer 1 for the tail-sec cluster group. In the legend, COM refers to the cyclodextrin COM to lignin dimer COM distance, head refers to the cyclodextrin COM to lignin dimer head distance, and tail refers to the cyclodextrin COM to lignin dimer tail distance.](000_Attachments/fig-kde_GG-tail-sec/cluster_distances_KDE_tail-sec.png){#fig-kde-1-tail-sec width=75%}
+
+### Dimer 2 cluster groups {#sec-cluster-groups-2}
+
+For dimer 2, the cluster groups were named head-sec, center-sec, tail-sec, and tail-pri. The head-sec, center-sec, tail-sec groups were defined analogously to dimer 1. The tail-pri group consists of clusters where the lignin dimer tail distance is usually greater than the lignin dimer head and COM distances and the COM of the lignin dimer is closer to the cyclodextrin primary face than the cyclodextrin secondary face (negative distance). KDE plots of the cyclodextrin COM to lignin dimer normal distances (COM, head, tail) for each cluster group are shown in @fig-kde-2-head-sec, @fig-kde-2-center-sec, @fig-kde-2-tail-sec, and @fig-kde-2-tail-pri.
+
+```{python}
+"""
+The files related to this figure are in ./000_Attachments/fig-kde_TGG-head-sec.
+This figure was generated using snakemake in the input directory.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+import subprocess
+import os
+from pathlib import Path
+
+# Current directory
+current_dir = Path().resolve()
+
+# Change directory
+input_dir = Path("../../input").resolve()
+os.chdir(input_dir)
+
+# Run the snakemake command
+subprocess.run(
+    [
+        "snakemake",
+        "../writing/HDBSCAN_clustering_for_identification_of_states_with_lignin_dimers_bound_to_cyclodextrin_from_molecular_dynamics_simulations/000_Attachments/fig-kde_TGG-head-sec/cluster_distances_KDE_head-sec.png",
+        "-j",
+    ],
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+)
+
+# Change directory back
+os.chdir(current_dir)
+```
+
+![KDE plots of the cyclodextrin to lignin dimer normal distances for dimer 2 for the head-sec cluster group. In the legend, COM refers to the cyclodextrin COM to lignin dimer COM distance, head refers to the cyclodextrin COM to lignin dimer head distance, and tail refers to the cyclodextrin COM to lignin dimer tail distance.](000_Attachments/fig-kde_TGG-head-sec/cluster_distances_KDE_head-sec.png){#fig-kde-2-head-sec width=75%}
+
+```{python}
+"""
+The files related to this figure are in ./000_Attachments/fig-kde_TGG-center-sec.
+This figure was generated using snakemake in the input directory.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+import subprocess
+import os
+from pathlib import Path
+
+# Current directory
+current_dir = Path().resolve()
+
+# Change directory
+input_dir = Path("../../input").resolve()
+os.chdir(input_dir)
+
+# Run the snakemake command
+subprocess.run(
+    [
+        "snakemake",
+        "../writing/HDBSCAN_clustering_for_identification_of_states_with_lignin_dimers_bound_to_cyclodextrin_from_molecular_dynamics_simulations/000_Attachments/fig-kde_TGG-center-sec/cluster_distances_KDE_center-sec.png",
+        "-j",
+    ],
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+)
+
+# Change directory back
+os.chdir(current_dir)
+```
+
+![KDE plots of the cyclodextrin to lignin dimer normal distances for dimer 2 for the center-sec cluster group. In the legend, COM refers to the cyclodextrin COM to lignin dimer COM distance, head refers to the cyclodextrin COM to lignin dimer head distance, and tail refers to the cyclodextrin COM to lignin dimer tail distance.](000_Attachments/fig-kde_TGG-center-sec/cluster_distances_KDE_center-sec.png){#fig-kde-2-center-sec width=75%}
+
+```{python}
+"""
+The files related to this figure are in ./000_Attachments/fig-kde_TGG-tail-sec.
+This figure was generated using snakemake in the input directory.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+import subprocess
+import os
+from pathlib import Path
+
+# Current directory
+current_dir = Path().resolve()
+
+# Change directory
+input_dir = Path("../../input").resolve()
+os.chdir(input_dir)
+
+# Run the snakemake command
+subprocess.run(
+    [
+        "snakemake",
+        "../writing/HDBSCAN_clustering_for_identification_of_states_with_lignin_dimers_bound_to_cyclodextrin_from_molecular_dynamics_simulations/000_Attachments/fig-kde_TGG-tail-sec/cluster_distances_KDE_tail-sec.png",
+        "-j",
+    ],
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+)
+
+# Change directory back
+os.chdir(current_dir)
+```
+
+
+![KDE plots of the cyclodextrin to lignin dimer normal distances for dimer 2 for the tail-sec cluster group. In the legend, COM refers to the cyclodextrin COM to lignin dimer COM distance, head refers to the cyclodextrin COM to lignin dimer head distance, and tail refers to the cyclodextrin COM to lignin dimer tail distance.](000_Attachments/fig-kde_TGG-tail-sec/cluster_distances_KDE_tail-sec.png){#fig-kde-2-tail-sec width=75%}
+
+```{python}
+"""
+The files related to this figure are in ./000_Attachments/fig-kde_TGG-tail-pri.
+This figure was generated using snakemake in the input directory.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+import subprocess
+import os
+from pathlib import Path
+
+# Current directory
+current_dir = Path().resolve()
+
+# Change directory
+input_dir = Path("../../input").resolve()
+os.chdir(input_dir)
+
+# Run the snakemake command
+subprocess.run(
+    [
+        "snakemake",
+        "../writing/HDBSCAN_clustering_for_identification_of_states_with_lignin_dimers_bound_to_cyclodextrin_from_molecular_dynamics_simulations/000_Attachments/fig-kde_TGG-tail-pri/cluster_distances_KDE_tail-pri.png",
+        "-j",
+    ],
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+)
+
+# Change directory back
+os.chdir(current_dir)
+```
+
+
+![KDE plots of the cyclodextrin to lignin dimer normal distances for dimer 2 for the tail-pri cluster group. In the legend, COM refers to the cyclodextrin COM to lignin dimer COM distance, head refers to the cyclodextrin COM to lignin dimer head distance, and tail refers to the cyclodextrin COM to lignin dimer tail distance.](000_Attachments/fig-kde_TGG-tail-pri/cluster_distances_KDE_tail-pri.png){#fig-kde-2-tail-pri width=75%}
+
+### Dimer 3 cluster groups {#sec-cluster-groups-3}
+
+For dimer 3, the cluster groups were named end-sec and center. The end-sec group consists of clusters where the distance for one of the lignin dimer ends (molecule is symmetric) is usually less than the distance for the lignin dimer end and the lignin dimer COMs and the COM of the lignin dimer is closer to the cyclodextrin secondary face than the cyclodextrin primary face (positive distance). The center group consists of clusters where the lignin dimer COM is located near the cyclodextrin. KDE plots of the cyclodextrin COM to lignin dimer normal distances (COM, ends) for each cluster group are shown in @fig-kde-3-end-sec and @fig-kde-3-center.
+
+```{python}
+"""
+The files related to this figure are in ./000_Attachments/fig-kde_GG_BB-end-sec.
+This figure was generated using snakemake in the input directory.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+import subprocess
+import os
+from pathlib import Path
+
+# Current directory
+current_dir = Path().resolve()
+
+# Change directory
+input_dir = Path("../../input").resolve()
+os.chdir(input_dir)
+
+# Run the snakemake command
+subprocess.run(
+    [
+        "snakemake",
+        "../writing/HDBSCAN_clustering_for_identification_of_states_with_lignin_dimers_bound_to_cyclodextrin_from_molecular_dynamics_simulations/000_Attachments/fig-kde_GG_BB-end-sec/cluster_distances_KDE_end-sec.png",
+        "-j",
+    ],
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+)
+
+# Change directory back
+os.chdir(current_dir)
+```
+
+![KDE plots of the cyclodextrin to lignin dimer normal distances for dimer 3 for the center-sec cluster group. In the legend, COM refers to the cyclodextrin COM to lignin dimer COM distance, head refers to the cyclodextrin COM to lignin dimer head distance, and tail refers to the cyclodextrin COM to lignin dimer tail distance.](000_Attachments/fig-kde_GG_BB-end-sec/cluster_distances_KDE_end-sec.png){#fig-kde-3-end-sec width=75%}
+
+```{python}
+"""
+The files related to this figure are in ./000_Attachments/fig-kde_GG_BB-center.
+This figure was generated using snakemake in the input directory.
+A conda environment file, bcd_ligin.yml, is in ./000_Attachments.
+"""
+
+import subprocess
+import os
+from pathlib import Path
+
+# Current directory
+current_dir = Path().resolve()
+
+# Change directory
+input_dir = Path("../../input").resolve()
+os.chdir(input_dir)
+
+# Run the snakemake command
+subprocess.run(
+    [
+        "snakemake",
+        "../writing/HDBSCAN_clustering_for_identification_of_states_with_lignin_dimers_bound_to_cyclodextrin_from_molecular_dynamics_simulations/000_Attachments/fig-kde_GG_BB-center/cluster_distances_KDE_center.png",
+        "-j",
+    ],
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+)
+
+# Change directory back
+os.chdir(current_dir)
+```
+
+![KDE plots of the cyclodextrin to lignin dimer normal distances for dimer 3 for the end-sec cluster group. In the legend, COM refers to the cyclodextrin COM to lignin dimer COM distance, head refers to the cyclodextrin COM to lignin dimer head distance, and tail refers to the cyclodextrin COM to lignin dimer tail distance.](000_Attachments/fig-kde_GG_BB-center/cluster_distances_KDE_center.png){#fig-kde-3-center width=75%}
+
+## Proportion of configurations in each cluster {#sec-proportions}
+
+For clusters and cluster groups containing configurations with a lignin dimer bound to the center of the cyclodextrin, the proportions of those configurations belonging to each cluster or cluster group were calculated. The proportions are shown in @tbl-fractions-1, @tbl-fractions-2, and @tbl-fractions-3.
 
 ```{python}
 #| label: tbl-fractions-1
-#| tbl-cap: "Proportions of center-bound configurations belonging to each cluster for dimer 1. Refer to @fig-clusters-1 to see the clusters and configurations corresponding to the label numbers. The head:sec, center:sec, and tail:sec labels refer to cluster groups which may include configurations from multiple clusters which are listed in the rows above them up until another group is encountered. The head:sec group refers to configurations where the lignin dimer head is closer to the center of the cyclodextrin than the lignin dimer tail or center and the center of the lignin dimer is closer to the cyclodextrin secondary face than the cyclodextrin primary face. The center:sec group refers to configurations where the lignin dimer center is closer to the center of the cyclodextrin than the lignin dimer head or tail and the center of the lignin dimer is closer to the cyclodextrin secondary face than the cyclodextrin primary face. The tail:sec group refers to configurations where the lignin dimer tail is closer to the center of the cyclodextrin than the lignin dimer head or center and the center of the lignin dimer is closer to the cyclodextrin secondary face than the cyclodextrin primary face."
+#| tbl-cap: "Proportions of center-bound configurations belonging to each cluster and cluster group for dimer 1. Refer to @fig-clusters-1 to see the clusters and configurations corresponding to the label numbers. The head-sec, center-sec, and tail-sec labels refer to cluster groups (see [Dimer 1 cluster groups](#sec-cluster-groups-1)). The clusters in each cluster group are listed in the rows above them up until another cluster group label is encountered or the top of the table."
 
 """
 The data for this table is in ./000_Attachments/tbl-fractions_GG/fractions.csv.
@@ -1117,11 +1441,11 @@ html_table = df.to_html(index=False)
 display(HTML(html_table))
 ```
 
-There are 3 cluster groups defined for dimer 1: head:sec, center:sec, and tail:sec (see the caption of @tbl-fractions-1 for the definitions). The head:sec group consists of 5 clusters. However, most of the configurations belong to cluster 6. Clusters 4, 5, 7 and 8 account for a total of about 2% of all configurations, while cluster 6 has about 50% of all configurations. The center:sec and tail:sec groups each consist of a single cluster. It may be best to increase `min_samples` so that the configurations in clusters 4-8 are merged into one cluster.
+There are 3 cluster groups defined for dimer 1: head-sec, center-sec, and tail-sec (see [Dimer 1 cluster groups](#sec-cluster-groups-1)). The head-sec group consists of 5 clusters. However, most of the configurations belong to cluster 6. Clusters 4, 5, 7 and 8 account for a total of about 2.0% of all configurations, while cluster 6 has about 50.5% of all configurations. The center-sec and tail-sec groups each consist of a single cluster with about 5.7% and 41.8% of all configurations, respectively.
 
 ```{python}
-#| label: tbl-fractions-2
-#| tbl-cap: "Proportions of center-bound configurations belonging to each cluster for dimer 2. Refer to @fig-clusters-2 to see the clusters and configurations corresponding to the label numbers. The head:sec, center:sec, and tail:pri labels refer to cluster groups which may include configurations from multiple clusters which are listed in the rows above them up until another group is encountered. The head:sec group refers to configurations where the lignin dimer head is closer to the center of the cyclodextrin than the lignin dimer tail or center and the center of the lignin dimer is closer to the cyclodextrin secondary face than the cyclodextrin primary face. The center:sec group refers to configurations where the lignin dimer center is closer to the center of the cyclodextrin than the lignin dimer head or tail and the center of the lignin dimer is closer to the cyclodextrin secondary face than the cyclodextrin primary face. The tail:pri group refers to configurations where the lignin dimer tail is closer to the center of the cyclodextrin than the lignin dimer head or center and the center of the lignin dimer is closer to the cyclodextrin primary face than the cyclodextrin secondary face."
+# | label: tbl-fractions-2
+# | tbl-cap: "Proportions of center-bound configurations belonging to each cluster and cluster group for dimer 2. Refer to @fig-clusters-2 to see the clusters and configurations corresponding to the label numbers. The head-sec, center-sec, tail-sec, and tail-pri labels refer to cluster groups (see [Dimer 2 cluster groups](#sec-cluster-groups-2)). The clusters in each cluster group are listed in the rows above them up until another cluster group label is encountered or the top of the table."
 
 """
 The data for this table is in ./000_Attachments/tbl-fractions_TGG/fractions.csv.
@@ -1141,11 +1465,11 @@ html_table = df.to_html(index=False)
 display(HTML(html_table))
 ```
 
-There are 3 cluster groups defined for dimer 2: head:sec, center:sec, and tail:pri (see the caption of @tbl-fractions-2 for the definitions). The head:sec group consists of 2 clusters. However, most of the configurations belong to cluster 5. Cluster 4 accounts for about 2% of all configurations, while cluster 5 has about 72% of all configurations. The center:sec group consists of 2 clusters. However, most of the configurations belong to cluster 2. Cluster 3 accounts for about 3% of all configurations, while cluster 2 has about 23% of all configurations. The tail:pri group consists of a single cluster. It may be best to increase `min_samples` so that the configurations in clusters 4 and 5 and clusters 2 and 3 are merged into two clusters.
+There are 4 cluster groups defined for dimer 2: head-sec, center-sec, tail-sec, and tail-pri (see [Dimer 2 cluster groups](#sec-cluster-groups-2)). The head-sec group consists of 2 clusters. However, most of the configurations belong to cluster 5. Cluster 4 accounts for about 2.3% of all configurations, while cluster 5 has about 71.5% of all configurations. The center-sec, tail-sec, and tail-pri groups consist of a single clusters with about 2.8%, 23.0%, and 0.4% of all configurations, respectively.
 
 ```{python}
-#| label: tbl-fractions-3
-#| tbl-cap: "Proportions of center-bound configurations belonging to each cluster for dimer 3. Refer to @fig-clusters-3 to see the clusters and configurations corresponding to the label numbers. The end:sec and center labels refer to cluster groups which may include configurations from multiple clusters which are listed in the rows above them up until another cluster group label is encountered. The end:sec group refers to configurations where one of the lignin dimer ends is closer to the center of the cyclodextrin than the lignin dimer center and the center of the lignin dimer is closer to the cyclodextrin secondary face than the cyclodextrin primary face. The center group refers to configurations where the lignin dimer center is near the cyclodextrin center."
+# | label: tbl-fractions-3
+# | tbl-cap: "Proportions of center-bound configurations belonging to each cluster and cluster group for dimer 3. Refer to @fig-clusters-3 to see the clusters and configurations corresponding to the label numbers. The end-sec and center labels refer to cluster groups (see [Dimer 3 cluster groups](#sec-cluster-groups-3)). The clusters in each cluster group are listed in the rows above them up until another cluster group label is encountered or the top of the table."
 
 """
 The data for this table is in ./000_Attachments/tbl-fractions_GG_BB/fractions.csv.
@@ -1165,11 +1489,11 @@ html_table = df.to_html(index=False)
 display(HTML(html_table))
 ```
 
-There are 2 cluster groups defined for dimer 2: head:sec, center:sec, and tail:pri (see the caption of @tbl-fractions-3 for the definitions). The head:sec group consists of 2 clusters. However, most of the configurations belong to cluster 5. Cluster 4 accounts for about 2% of all configurations, while cluster 5 has about 72% of all configurations. The center:sec group consists of 2 clusters. However, most of the configurations belong to cluster 2. Cluster 3 accounts for about 3% of all configurations, while cluster 2 has about 23% of all configurations. The tail:pri group consists of a single cluster. It may be best to increase `min_samples` so that the configurations in clusters 4 and 5 and clusters 2 and 3 are merged into two clusters.
+There are 2 cluster groups defined for dimer 3: end-sec and center (see [Dimer 3 cluster groups](#sec-cluster-groups-3)). The end-sec group consists of 2 clusters. However, most of the configurations belong to cluster 1. Cluster 3 accounts for about 0.3% of all configurations, while cluster 5 has about 7.2% of all configurations. The center group consists of a single cluster with about 92.6% of all configurations.
 
-## Proportion of configurations belonging to each cluster: Merged clusters {#sec-fractions-merge}
+## Comparison to previous work {#sec-compare}
 
-**As discussed in [Proportion of configurations belonging to each cluster: Original `min_samples` values](#sec-fractions-orig), each cluster group typically includes one cluster that contains the majority of configurations within that group. Consequently, for groups containing multiple clusters, these clusters were merged by increasing the `min_samples` parameter. This also allows for direct comparison with the cluster fractions reported in the previous study[@dean_complexation_2022].**
+dd
 
 # Conclusions {#sec-conclusions}
 
