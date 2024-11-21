@@ -113,6 +113,12 @@ def main(parsed_args):
                 },
             },
             showlegend=True,
+            legend=dict(
+                x=0.91,
+                y=0.5,
+                xanchor="right",
+                yanchor="middle"
+            )            
         )
     else:
         fig.update_layout(
@@ -139,6 +145,12 @@ def main(parsed_args):
                 },
             },
             showlegend=True,
+            legend=dict(
+                x=0.9,
+                y=0.5,
+                xanchor="right",
+                yanchor="middle"
+            )
         )
 
     fig.update_traces(marker_line_color="rgba(0,0,0,0)")
@@ -146,9 +158,9 @@ def main(parsed_args):
     fig.update_layout(plot_bgcolor="rgba(0,0,0,0)")
 
     # Save the plot in HTML and JSON formats
-    if args.file_label:
-        fig.write_html(Path(parsed_args.dir, f"clusters_{args.file_label}.html"))
-        json_file = Path(parsed_args.dir, f"clusters_{args.file_label}.json")
+    if parsed_args.file_label:
+        fig.write_html(Path(parsed_args.dir, f"clusters_{parsed_args.file_label}.html"))
+        json_file = Path(parsed_args.dir, f"clusters_{parsed_args.file_label}.json")
     else:
         fig.write_html(Path(parsed_args.dir, "clusters.html"))
         json_file = Path(parsed_args.dir, "clusters.json")
@@ -157,16 +169,15 @@ def main(parsed_args):
         json.dump(fig.to_plotly_json(), f, cls=plotly.utils.PlotlyJSONEncoder)
 
     # Save the plot in PNG format
-    fig.update_layout(showlegend=False)
-    if args.file_label:
-        fig.write_image(Path(parsed_args.dir, f"clusters_{args.file_label}.png"), scale=4)
+    if parsed_args.file_label:
+        fig.write_image(Path(parsed_args.dir, f"clusters_{parsed_args.file_label}.png"), scale=4)
     else:
         pio.write_image(fig, Path(parsed_args.dir, "clusters.png"), scale=4)
 
     # Save the cluster labels
-    if args.file_label:
+    if parsed_args.file_label:
         np.savetxt(
-            Path(parsed_args.dir, f"cluster_labels_{args.file_label}.dat"),
+            Path(parsed_args.dir, f"cluster_labels_{parsed_args.file_label}.dat"),
             clustering.labels_,
             fmt="%d",
         )
