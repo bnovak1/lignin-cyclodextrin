@@ -253,6 +253,38 @@ rule vmd_arrowss:
         expand(rules.vmd_arrows.output, lignol=config["LIGNOLS"]),
 
 
+# Generate files from config['CENTER_BOUND_CLUSTER_LABELS'].
+rule center_bound_cluster_labels:
+    input:
+        configfile="Snakefile.json",
+    output:
+        cluster_labels_json=str(analysis_dir / "clustering/center_bound_cluster_labels.json"),
+        cluster_labels_list=str(analysis_dir / "clustering/center_bound_cluster_labels.dat"),
+    run:
+        import json
+        import numpy as np
+
+        # Copy JSON from configfile to output.cluster_labels_json
+        with open(input.configfile) as f:
+            config = json.load(f)
+        with open(output.cluster_labels_json, "w") as f:
+            json.dump(config["CENTER_BOUND_CLUSTER_LABELS"][wildcards.lignol], f, indent=4)
+
+        # Create a sorted list containing the items in the lists for each key in config["CENTER_BOUND_CLUSTER_LABELS"][wildcards.lignol]
+        sorted_labels = sorted(
+            label
+            for labels in config["CENTER_BOUND_CLUSTER_LABELS"][wildcards.lignol].values()
+            for label in labels
+        )
+        
+        # Write sorted_labels to output.cluster_labels_list
+        np.savetxt(output.cluster_labels_list, sorted_labels, fmt="%d")
+
+rule center_bound_cluster_labelss:
+    input:
+        expand(rules.center_bound_cluster_labels.output, lignol=config["LIGNOLS"])
+
+
 # Generate images of the configurations.
 # The .vmd files were created manually.
 rule cluster_config_images:
@@ -281,7 +313,7 @@ rule cluster_config_imagess:
             )
             for lignol in config["LIGNOLS"]
             for cluster_id in np.loadtxt(
-                str(Path(lignol, "center_bound_cluster_labels.dat")), dtype=int
+                rules.center_bound_cluster_labels.output.cluster_labels_list.format(lignol=lignol), dtype=int
             )
         ],
 
@@ -322,7 +354,7 @@ rule cluster_distances_KDE:
     input:
         colvar=rules.plumed_CVs.output.colvar,
         cluster_labels=rules.plot_clusters.output.cluster_labels,
-        center_bound_clusters="{lignol}/center_bound_cluster_labels.json",
+        center_bound_clusters=rules.center_bound_cluster_labels.output.cluster_labels_json,
         script="../scripts/cluster_distances_KDE.py",
     output:
         kde_plot = str(analysis_dir / "clustering/cluster_distances_KDE_{cluster_group}.png"),
@@ -340,6 +372,7 @@ rule cluster_distances_KDE:
             --center_bound_clusters {input.center_bound_clusters} \
             --cluster_group {wildcards.cluster_group} \
             --outdir {params.drctry}
+        mogrify -trim {output.kde_plot}
         cp {output.kde_plot} {output.kde_plot_writing}
         """
 
@@ -362,14 +395,13 @@ rule cluster_distances_KDEs:
             for cluster_group in config["CENTER_BOUND_CLUSTER_LABELS"][lignol].keys()
         ],
 
-
 # Fractions of configurations belonging to each cluster.
 # The fractions are calculated with respect to the total number of configurations where the lignin dimer is bound to the center of the cyclodextrin.
 rule clusters_fractions:
     input:
         cluster_labels=rules.plot_clusters.output.cluster_labels,
         script=Path("../scripts/cluster_fractions.py"),
-        center_bound_clusters=Path("{lignol}/center_bound_cluster_labels.json"),
+        center_bound_clusters=rules.center_bound_cluster_labels.output.cluster_labels_json,
     output:
         fractions=str(analysis_dir / "clustering/fractions.csv"),
         fractions_writing=str(writing_dir / "tbl-fractions_{lignol}" / "fractions.csv"),
@@ -385,3 +417,27 @@ rule clusters_fractions:
 rule clusters_fractionss:
     input:
         expand(rules.clusters_fractions.output, lignol=config["LIGNOLS"])
+
+
+# Bar plots of the fractions of configurations belonging to each cluster compared with previous work.
+rule cluster_fractions_comparison:
+    input:
+        fractions=rules.clusters_fractions.output.fractions,
+        fractions_previous=Path("../analysis/{lignol}/previous/bound_fractions.dat"),
+        script=Path("../scripts/cluster_fractions_comparison.py"),
+    output:
+        bar_plot=str(analysis_dir / "clustering/fractions_comparison.png"),
+        bar_plot_writing=str(writing_dir / "fig-fractions-comparison_{lignol}" / "fractions_comparison.png"),
+    shell:
+        """
+        python {input.script} \
+            --lignol {wildcards.lignol} \
+            --fractions {input.fractions} \
+            --fractions_previous {input.fractions_previous} \
+            --outfile {output.bar_plot}
+        cp {output.bar_plot} {output.bar_plot_writing}
+        """
+
+rule cluster_fractions_comparisons:
+    input:
+        expand(rules.cluster_fractions_comparison.output, lignol=config["LIGNOLS"])
