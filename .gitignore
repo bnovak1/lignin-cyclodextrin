@@ -6,3 +6,4 @@ _Index*.md
 __pycache__/
 test.ipynb
 test.py
+backup.ffs_batch

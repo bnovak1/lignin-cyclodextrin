@@ -96,24 +96,23 @@ def main(arguments):
 
         # Create a figure
         plt.figure()
-
+        
         # Plot KDEs for each column
-        bandwidth = 0.15
         if arguments.lignol == "GG_BB":
-            
+
             # Plot KDE for COM
             data = cluster_distances["dnorm"]
-            sns.kdeplot(data, bw_method=bandwidth, label="COM")
+            sns.kdeplot(data, label="COM")
             
             # Plot KDE for ends (head and tail concatenated)
             data = pd.concat([cluster_distances["dhead"], cluster_distances["dtail"]], ignore_index=True)
-            sns.kdeplot(data, bw_method=bandwidth/2, label="ends")
+            sns.kdeplot(data, label="ends")
             
         else:
             
             for column in cluster_distances.columns:
                 data = cluster_distances[column]
-                sns.kdeplot(data, bw_method=bandwidth, label=column)
+                sns.kdeplot(data, label=column)
 
         # Add legend and labels
         if arguments.lignol == "GG_BB":
@@ -124,20 +123,6 @@ def main(arguments):
         plt.xlabel("Normal distance (nm)")
         plt.ylabel("Density")
         
-        xlims = plt.xlim()
-        ylims = plt.ylim()
-        if arguments.lignol == "GG_BB":
-            text = f"COM Bandwidth = {bandwidth:.3f} nm\nends Bandwidth = {bandwidth/2:.3f} nm"
-        else:
-            text = f"Bandwidth = {bandwidth:.3f} nm"
-        plt.text(
-            xlims[0] + 0.01 * (xlims[1] - xlims[0]),
-            ylims[1] - 0.01 * (ylims[1] - ylims[0]),
-            text,
-            ha="left",
-            va="top",
-        )
-
         # Save the figure and close it
         outfile = Path(
             arguments.outdir,
