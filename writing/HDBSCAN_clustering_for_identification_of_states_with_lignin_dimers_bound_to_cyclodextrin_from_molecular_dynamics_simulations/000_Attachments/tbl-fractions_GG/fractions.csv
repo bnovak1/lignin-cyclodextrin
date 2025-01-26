@@ -4,8 +4,8 @@ Label,Fraction
 6,0.5051
 7,0.0054
 8,0.0067
-head:sec,0.5253
+head-sec,0.5253
 2,0.0571
-center:sec,0.0571
+center-sec,0.0571
 3,0.4176
-tail:sec,0.4176
+tail-sec,0.4176

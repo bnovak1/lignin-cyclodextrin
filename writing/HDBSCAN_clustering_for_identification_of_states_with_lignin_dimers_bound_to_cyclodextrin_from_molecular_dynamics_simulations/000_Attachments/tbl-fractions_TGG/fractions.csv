@@ -1,10 +1,10 @@
 Label,Fraction
 4,0.0229
 5,0.7153
-head:sec,0.7382
+head-sec,0.7382
 3,0.028
-center:sec,0.028
+center-sec,0.028
 2,0.23
-tail:sec,0.23
+tail-sec,0.23
 1,0.0037
-tail:pri,0.0037
+tail-pri,0.0037
