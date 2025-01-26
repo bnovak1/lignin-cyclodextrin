@@ -1,5 +1,4 @@
 .snakemake/
-output/
 notes/
 analysis/
 _Index*.md
