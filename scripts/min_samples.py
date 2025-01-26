@@ -97,11 +97,11 @@ def main():
         n_clusters[idx, 1],
         "ro",
         mfc="none",
-        label=f"min_samples = {min_samples} used\n{n_clusters[idx, 1][0]} clusters",
+        label=f"min_cluster_size = {min_samples} used\n{n_clusters[idx, 1][0]} clusters",
     )
 
     # Labels and legend
-    plt.xlabel("min_samples")
+    plt.xlabel("min_cluster_size")
     plt.ylabel("Number of clusters")
     plt.legend()
 
