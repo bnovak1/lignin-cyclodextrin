@@ -36,6 +36,10 @@ tags:
   - rdkit
 ---
 
+# Abstract {#sec-abstract}
+
+Cyclodextrins might be useful for separating lignin compounds due to their unique structural features. Unbiased molecular dynamics simulations of three lignin dimers or dimer derivatives were conducted to investigate dimer-cyclodextrin bound states using three carefully chosen yet relatively simple collective variables (CVs) and HDBSCAN clustering. All configuration types with lignin dimers bound to the cyclodextrin center which were visually observed in the trajectories were separated into distinct clusters or groups of cluster. That is in constrast with the original analysis which used many CVs, PCA to reduce dimensionality, and DBSCAN for clustering where it was not possible to separate some of the configuration types into distinct clusters. For the one dimer where the configuration types were correctly separated into distinct clusters, the proportions of configurations of each type were very similar to the proportions computed in this work. Compared to the original analysis, use of only three simple CVs improved interpretability and use of HDBSCAN made separation of configuration types into different clusters easier.
+
 # Introduction {#sec-introduction}
 
 Lignin, one of the most abundant biopolymers on Earth, occurs mainly in plant cell walls.[@weng_origin_2010] Lignin is biodegradable and biocompatible[@wang_advanced_2021] while still being relatively stable which makes it attractive for research in pharmacological and biomedical applications. It consists of three types of monomers, which link with each other in various ways, producing a complex, branched structure. To extract specific compounds from lignin, it is necessary to first break down the lignin and then isolate the desired compounds from a mixture containing numerous compounds.
