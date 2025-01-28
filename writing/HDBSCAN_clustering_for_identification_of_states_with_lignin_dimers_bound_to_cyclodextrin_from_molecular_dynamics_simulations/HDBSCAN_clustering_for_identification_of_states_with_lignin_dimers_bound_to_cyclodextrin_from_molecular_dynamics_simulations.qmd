@@ -1,6 +1,5 @@
 ---
-title: HDBSCAN clustering for identification of states with lignin dimers bound
-  to $\beta$-cyclodextrin from molecular dynamics simulations
+title: Identifying lignin dimer to $\beta$-cyclodextrin bound configuration types from molecular dynamics simulations
 author: Brian Novak
 license: "CC BY"
 toc: true
